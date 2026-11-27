@@ -1,6 +1,11 @@
+"use client";
+import { useState } from "react";
+import { ChevronRight } from "lucide-react";
+import { StudentShell, useMobileStudent } from "@/components/student-shell";
+import { ConfirmDialog } from "@/components/ui/dialog";
 import Link from "next/link";
 import { Shell, Footer, ItemIcon } from "@/components/common";
-import { items, labels } from "@/lib/model";
+import { items, labels, type Waste } from "@/lib/model";
 const tips = {
   general: [
     "재활용이 어려운 폐기물",
@@ -28,6 +33,48 @@ const tips = {
   ],
 };
 export default function Guide() {
+  const mobile = useMobileStudent(),
+    [item, choose] = useState<Waste | null>(null);
+  if (mobile)
+    return (
+      <StudentShell>
+        <main className="mobile-reading">
+          <div className="reading-heading">
+            <h1>분리배출 안내</h1>
+            <p>내용물을 비우고, 거점에 표시된 품목을 확인하세요.</p>
+          </div>
+          <div className="reading-scroll">
+            <div className="guide-grid">
+              {items.map((t) => (
+                <button
+                  key={t}
+                  className={"kind-" + t}
+                  onClick={() => choose(t)}
+                  aria-haspopup="dialog"
+                >
+                  <span className="station-icon">
+                    <ItemIcon kind={t} size={24} />
+                  </span>
+                  <strong>{labels[t]}</strong>
+                  <ChevronRight size={15} />
+                </button>
+              ))}
+            </div>
+          </div>
+          <ConfirmDialog
+            sheet
+            open={!!item}
+            onOpenChange={(open) => {
+              if (!open) choose(null);
+            }}
+            title={item ? labels[item] : "배출 방법"}
+            description={item ? tips[item][0] : ""}
+          >
+            {item && <p>{tips[item][1]}</p>}
+          </ConfirmDialog>
+        </main>
+      </StudentShell>
+    );
   return (
     <>
       <Shell />

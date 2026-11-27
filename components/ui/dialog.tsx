@@ -9,18 +9,20 @@ export function ConfirmDialog({
   title,
   description,
   children,
+  sheet = false,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   title: string;
   description: string;
   children: ReactNode;
+  sheet?: boolean;
 }) {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="scrim" />
-        <Dialog.Content className="dialog">
+        <Dialog.Content className={sheet ? "dialog mobile-dialog" : "dialog"}>
           <Dialog.Close className="close" aria-label="닫기">
             <X size={18} />
           </Dialog.Close>

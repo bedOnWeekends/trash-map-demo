@@ -226,6 +226,7 @@ test("모바일 배치도, 키보드, 줄어든 모션 및 폴링 폴백", async
     ws.close({ code: 1000, reason: "poll test" }),
   );
   await page.goto(base);
+  await page.getByRole("button", { name: "목록 펼치기" }).click();
   await expect(page.locator(".station")).toHaveCount(8);
   await expect(
     page.getByText("주기적 동기화", { exact: true }).last(),
@@ -241,7 +242,347 @@ test("모바일 배치도, 키보드, 줄어든 모션 및 폴링 폴백", async
     expect(await page.locator(":focus").count()).toBe(1);
   }
   await page.goto(base);
-  await page.getByRole("button", { name: "목록 접기" }).click();
+  await page.getByRole("button", { name: "목록 펼치기" }).click();
+  await page.getByRole("button", { name: "시트 닫기" }).click();
   await expect(page.getByRole("button", { name: "목록 펼치기" })).toBeVisible();
   expect(zones.length).toBe(8);
+});
+
+const sizes = [
+  [320, 568],
+  [360, 640],
+  [375, 667],
+  [390, 844],
+  [412, 915],
+  [430, 932],
+  [844, 390],
+] as const;
+test("학생 앱 셸과 배출 안내가 화면 크기와 방향에 맞는다", async ({
+  page,
+}, info) => {
+  for (const [width, height] of sizes) {
+    await page.setViewportSize({ width, height });
+    for (const route of ["/", "/requests", "/guide"]) {
+      await page.goto(base + route);
+      const app = page.locator(".student-app");
+      await expect(app).toBeVisible();
+      await expect(app.locator(".student-tabs [aria-current]")).toBeVisible();
+      await page.evaluate(() => document.fonts.ready);
+      const fits = await app.evaluate((el) => {
+        const root = document.documentElement,
+          nav = el.querySelector(".student-tabs")!.getBoundingClientRect();
+        return (
+          root.scrollHeight <= innerHeight + 1 &&
+          root.scrollWidth <= innerWidth + 1 &&
+          nav.bottom <= innerHeight + 1 &&
+          nav.top >= 0
+        );
+      });
+      expect(fits, route + " " + width + "x" + height).toBe(true);
+      if (route === "/") {
+        await expect(page.locator(".pin").first()).toBeVisible();
+        await expect
+          .poll(() =>
+            page.locator(".pin").evaluateAll((pins) =>
+              pins.every((pin) => {
+                const r = pin.getBoundingClientRect();
+                return pin.contains(
+                  document.elementFromPoint(
+                    r.x + r.width / 2,
+                    r.y + r.height / 2,
+                  ),
+                );
+              }),
+            ),
+          )
+          .toBe(true);
+        const credit = page.locator(".map-credit");
+        if (await credit.count()) {
+          const c = await credit.boundingBox(),
+            sheet = await page.locator(".mobile-sheet").boundingBox();
+          expect(c!.y + c!.height).toBeLessThanOrEqual(sheet!.y + 1);
+        }
+      }
+      if (route === "/requests")
+        await expect(
+          page.locator(".request-empty, .request-entry").first(),
+        ).toBeVisible();
+      if (route === "/guide") {
+        const buttons = page.locator(".guide-grid button");
+        await expect(buttons).toHaveCount(6);
+        await expect(buttons.last()).toBeInViewport({ ratio: 1 });
+        await buttons.last().click();
+        await expect(page.getByRole("dialog")).toContainText(
+          "컵과 음료는 따로",
+        );
+        await page.getByRole("button", { name: "닫기", exact: true }).click();
+      }
+      await page.screenshot({
+        path: info.outputPath(
+          width + "x" + height + "-" + (route.slice(1) || "map") + ".png",
+        ),
+        animations: "disabled",
+      });
+    }
+  }
+});
+test("모바일 시트, 품목 신고, 작성 복원, 제출 및 실시간 갱신", async ({
+  page,
+  browser,
+}, info) => {
+  expect(new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).hostname).toMatch(
+    /^(127\.0\.0\.1|localhost)$/,
+  );
+  await page.setViewportSize({ width: 390, height: 844 });
+  const admin = await browser.newPage({
+    viewport: { width: 1280, height: 900 },
+  });
+  try {
+    await login(admin);
+    await page.goto(base);
+    const model = await snap(admin, true),
+      bin = model.bins.find((b) => b.waste_types.length > 1)!;
+    const search = page.getByRole("searchbox");
+    await search.fill(bin.name);
+    await expect(page.locator(".station")).toHaveCount(1);
+    await expect(page.locator(".pin")).toHaveCount(1);
+    await page.getByRole("button", { name: "검색·필터 초기화" }).click();
+    await page.getByRole("button", { name: "전체 품목 필터" }).click();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: "남은 음료", exact: true })
+      .click();
+    await expect(page.locator(".quick-filters [aria-pressed=true]")).toHaveText(
+      "남은 음료",
+    );
+    await page.getByRole("button", { name: "시트 닫기" }).click();
+    const handle = page.locator(".sheet-handle");
+    await handle.hover(); // Wait for the snap animation to settle before taking pointer coordinates.
+    const rect = await handle.boundingBox();
+    await page.mouse.move(rect!.x + 60, rect!.y + 20);
+    await page.mouse.down();
+    await page.mouse.move(rect!.x + 60, rect!.y - 120, { steps: 8 });
+    await page.mouse.up();
+    await expect(page.locator(".mobile-workbench")).toHaveAttribute(
+      "data-snap",
+      "half",
+    );
+    await handle.click();
+    await expect(page.locator(".mobile-workbench")).toHaveAttribute(
+      "data-snap",
+      "expanded",
+    );
+    await page.getByRole("button", { name: "시트 닫기" }).click();
+    await page.getByRole("button", { name: "전체", exact: true }).click();
+    await page.getByRole("button", { name: "시트 닫기" }).click();
+    // Open a station from its actual map pin. The mixed station near the center is accessible at initial zoom.
+    const central =
+      model.bins.find((b) => b.zone_id === "anniversary") ??
+      model.bins.find((b) => b.name.includes("60주년")) ??
+      bin;
+    await page.getByRole("button", { name: central.name, exact: true }).click();
+    await expect(page.locator(".item-detail")).toHaveCount(
+      central.waste_types.length,
+    );
+    await expect(page.locator(".mobile-workbench")).toHaveAttribute(
+      "data-snap",
+      "half",
+    );
+    const camera = page.locator(".basemap");
+    await page.locator(".sheet-handle").hover();
+    const viewBefore = await camera.getAttribute("viewBox");
+    await page.screenshot({
+      path: info.outputPath("station-detail.png"),
+      animations: "disabled",
+    });
+    const waste = central.waste_types[0];
+    const next = central.fills[waste] === 72 ? 71 : 72;
+    expect(
+      (
+        await write(admin, "admin/sensor", model.epoch, {
+          id: central.id,
+          item: waste,
+          percent: next,
+        })
+      ).ok(),
+    ).toBe(true);
+    await expect(page.locator(".item-detail").first()).toContainText(
+      next + "%",
+    );
+    await expect(page.locator(".pin.chosen")).toHaveAttribute(
+      "title",
+      central.name,
+    );
+    await expect(page.locator(".mobile-workbench")).toHaveAttribute(
+      "data-snap",
+      "half",
+    );
+    await expect(camera).toHaveAttribute("viewBox", viewBefore!);
+    await page.locator(".report").first().click();
+    await page.getByRole("button", { name: "확인하고 신고" }).click();
+    await expect(page.getByRole("status")).toContainText("신고를 접수");
+    expect(
+      (await snap(admin, true)).bins.find((b) => b.id === central.id)?.fills[
+        waste
+      ],
+    ).toBe(next);
+    await page.getByRole("button", { name: "추가 설치 건의" }).click();
+    await expect(page.getByRole("button", { name: "다음" })).toBeDisabled();
+    await page.getByLabel("가상 위치 선택").selectOption("five");
+    await expect(page.locator(".pin.kind-candidate")).toBeVisible();
+    await page.getByRole("button", { name: "다음" }).click();
+    await expect(page.getByRole("button", { name: "다음" })).toBeDisabled();
+    await page.getByRole("button", { name: "종이", exact: true }).click();
+    await page.getByRole("button", { name: "유리", exact: true }).click();
+    await page.screenshot({
+      path: info.outputPath("wizard-items.png"),
+      animations: "disabled",
+    });
+    await page.getByRole("button", { name: "다음" }).click();
+    const reason = "모바일 세미나 분리배출";
+    await page.getByLabel("건의 사유").fill(reason);
+    await page.getByRole("button", { name: "이전" }).click();
+    await expect(
+      page.getByRole("button", { name: "종이", exact: true }),
+    ).toHaveAttribute("aria-pressed", "true");
+    await page.getByRole("button", { name: "다음" }).click();
+    await page.getByRole("link", { name: "내 건의", exact: true }).click();
+    await page.getByRole("link", { name: "수거함 지도", exact: true }).click();
+    await expect(page.getByLabel("건의 사유")).toHaveValue(reason);
+    await page.getByRole("button", { name: "건의 작성 취소" }).click();
+    await page.getByRole("button", { name: "계속 작성" }).click();
+    await page.setViewportSize({ width: 390, height: 415 });
+    await page.getByLabel("건의 사유").focus();
+    await expect(
+      page.getByRole("button", { name: "건의 제출" }),
+    ).toBeInViewport({ ratio: 1 });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.screenshot({ path: info.outputPath("wizard.png") });
+    await page.route(
+      "**/api/requests",
+      (route) =>
+        route.fulfill({
+          status: 503,
+          json: { error: "잠시 뒤 다시 시도해 주세요." },
+        }),
+      { times: 1 },
+    );
+    await page.getByRole("button", { name: "건의 제출" }).click();
+    await expect(page.getByRole("status")).toContainText("다시 시도");
+    await expect(page.getByLabel("건의 사유")).toHaveValue(reason);
+    await page.getByRole("button", { name: "건의 제출" }).click();
+    await expect(page.getByRole("status")).toContainText("접수");
+    await page.getByRole("link", { name: "내 건의", exact: true }).click();
+    await expect(page.locator(".request-entry").first()).toContainText("접수");
+    await page.locator(".request-entry summary").first().click();
+    await expect(page.getByText(reason)).toBeVisible();
+    await page.screenshot({ path: info.outputPath("request-history.png") });
+  } finally {
+    await admin.close();
+  }
+});
+
+test("터치 지도 제스처, 직접 위치 지정, 안전 영역과 가로 시트", async ({
+  browser,
+}, info) => {
+  const context = await browser.newContext({
+    isMobile: true,
+    hasTouch: true,
+    viewport: { width: 390, height: 844 },
+  });
+  try {
+    const page = await context.newPage();
+    const cdp = await context.newCDPSession(page);
+    await cdp.send("Emulation.setSafeAreaInsetsOverride", {
+      insets: { top: 16, bottom: 24, left: 0, right: 0 },
+    });
+    await page.goto(base);
+    const sheet = page.locator(".mobile-workbench"),
+      map = page.locator(".schematic"),
+      svg = map.locator("svg.basemap");
+    await expect(page.locator(".pin").first()).toBeVisible();
+    await expect(page.locator(".student-tabs")).toHaveCSS(
+      "padding-bottom",
+      "24px",
+    );
+    await expect(page.locator(".student-app")).toHaveCSS("padding-top", "16px");
+    async function touch(
+      type: "touchStart" | "touchMove" | "touchEnd",
+      coords: number[][],
+    ) {
+      await cdp.send("Input.dispatchTouchEvent", {
+        type,
+        touchPoints: coords.map(([x, y], id) => ({ x, y, id })),
+      });
+    }
+    const basis = await svg.getAttribute("viewBox");
+    await touch("touchStart", [
+      [160, 230],
+      [220, 230],
+    ]);
+    await touch("touchMove", [
+      [125, 230],
+      [255, 230],
+    ]);
+    await touch("touchEnd", []);
+    await expect.poll(() => svg.getAttribute("viewBox")).not.toBe(basis);
+    expect(
+      Number((await svg.getAttribute("viewBox"))!.split(" ")[2]),
+    ).toBeLessThan(Number(basis!.split(" ")[2]));
+    const zoomed = await svg.getAttribute("viewBox");
+    await touch("touchStart", [[180, 210]]);
+    await touch("touchMove", [[155, 245]]);
+    await touch("touchEnd", []);
+    await expect.poll(() => svg.getAttribute("viewBox")).not.toBe(zoomed);
+    await expect(sheet).toHaveAttribute("data-snap", "peek");
+    await page.getByRole("button", { name: "지도 범위 맞추기" }).click();
+    await expect(svg).toHaveAttribute("viewBox", basis!);
+    await page.getByRole("button", { name: "추가 설치 건의" }).click();
+    const surface = await map.boundingBox();
+    await page.touchscreen.tap(surface!.x + 5, surface!.y + 5);
+    await expect(page.getByRole("status")).toContainText("캠퍼스 관리 구역");
+    await expect(page.getByRole("button", { name: "다음" })).toBeDisabled();
+    const point = await page
+      .locator(".map-label")
+      .filter({ hasText: "본관" })
+      .evaluate((el) => {
+        const r = el.parentElement!.getBoundingClientRect(),
+          label = el as HTMLElement;
+        return {
+          x: r.x + (parseFloat(label.style.left) * r.width) / 100,
+          y: r.y + (parseFloat(label.style.top) * r.height) / 100,
+        };
+      });
+    await page.touchscreen.tap(point.x, point.y);
+    await expect(page.getByLabel("가상 위치 선택")).toHaveValue("main");
+    await expect(page.getByRole("button", { name: "다음" })).toBeEnabled();
+    await page.screenshot({
+      path: info.outputPath("map-picked.png"),
+      animations: "disabled",
+    });
+    await page.getByRole("button", { name: "건의 작성 취소" }).click();
+    await page.getByRole("button", { name: "작성 취소", exact: true }).click();
+    await page.setViewportSize({ width: 844, height: 390 });
+    await page.getByRole("button", { name: "목록 펼치기" }).click();
+    const handle = page.locator(".sheet-handle");
+    await handle.hover();
+    const h = await handle.boundingBox();
+    await touch("touchStart", [[h!.x + 40, h!.y + 25]]);
+    await touch("touchMove", [[h!.x - 65, h!.y + 25]]);
+    await touch("touchEnd", []);
+    await expect(sheet).toHaveAttribute("data-snap", "expanded");
+    await page.getByRole("button", { name: "시트 닫기" }).click();
+    await page.setViewportSize({ width: 320, height: 568 });
+    await page.getByRole("link", { name: "배출 안내" }).click();
+    await page.addStyleTag({
+      content: ".guide-grid strong, .mobile-dialog p {font-size: 2rem}",
+    });
+    for (const btn of await page.locator(".guide-grid button").all()) {
+      await btn.click();
+      await expect(page.getByRole("dialog")).toBeVisible();
+      await page.getByRole("button", { name: "닫기", exact: true }).click();
+    }
+  } finally {
+    await context.close();
+  }
 });

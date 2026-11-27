@@ -25,7 +25,7 @@ import {
 } from "./common";
 import { ConfirmDialog } from "./ui/dialog";
 import CampusMap, { type Pin } from "./campus-map";
-import { binPin } from "./student";
+import { binPin } from "./student-stations";
 import { useBooth, type Booth } from "@/lib/use-booth";
 import {
   items,
