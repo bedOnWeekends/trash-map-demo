@@ -109,12 +109,16 @@
 .mobile-workbench:is([data-step="2"], [data-step="3"]) {
   --sheet-size: 100%;
 }
+.mobile-map-stage .schematic,
+.mobile-map-stage .map-surface {
+  overflow: clip;
+}
 .mobile-map-stage {
   position: relative;
   display: flex;
   min-width: 0;
   min-height: 0;
-  overflow: hidden;
+  overflow: clip;
 }
 .mobile-map-stage .map-surface {
   height: auto;

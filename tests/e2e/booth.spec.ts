@@ -390,6 +390,18 @@ test("모바일 시트, 품목 신고, 작성 복원, 제출 및 실시간 갱�
     );
     const camera = page.locator(".basemap");
     await page.locator(".sheet-handle").hover();
+    await expect
+      .poll(() =>
+        page.locator(".pin.chosen").evaluate((pin) => {
+          const marker = pin.parentElement!.getBoundingClientRect(),
+            map = pin.closest(".map-surface")!.getBoundingClientRect();
+          return (
+            Math.abs(marker.x - map.x - map.width / 2) +
+            Math.abs(marker.y - map.y - map.height / 2)
+          );
+        }),
+      )
+      .toBeLessThan(3);
     const viewBefore = await camera.getAttribute("viewBox");
     await page.screenshot({
       path: info.outputPath("station-detail.png"),
