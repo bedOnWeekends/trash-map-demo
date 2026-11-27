@@ -34,16 +34,8 @@
   height: 32px;
 }
 .student-app .top nav,
-.student-app .campus-name {
-  display: none;
-}
 .student-app .booth-label {
-  margin-left: 0;
-}
-.student-app .demo {
-  border-radius: 4px;
-  padding: var(--space-3xs) var(--space-xs);
-  font-size: 10px;
+  display: none;
 }
 .student-app .shell-sync {
   display: flex;

@@ -94,7 +94,6 @@ export function Shell({
           <span className="campus-name">
             {admin ? "관리자 콘솔" : "인하대학교 체험 부스"}
           </span>
-          <span className="demo">데모</span>
         </span>
         {sync && (
           <span className="shell-sync">
@@ -106,6 +105,7 @@ export function Shell({
   );
 }
 export function Sync({ text }: { text: string }) {
+  if (!text) return null;
   return (
     <span className="sync">
       <Radio size={15} />

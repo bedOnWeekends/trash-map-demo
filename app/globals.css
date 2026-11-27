@@ -218,13 +218,14 @@ strong {
 }
 .booth-label {
   margin-left: auto;
+  /* Keep the campus label on its original alignment within the header. */
+  margin-inline-end: 46.1px;
   display: flex;
   align-items: center;
   gap: var(--space-xs);
   color: var(--color-muted);
   font-size: 13px;
 }
-.demo,
 .sync,
 .status-tag {
   display: inline-flex;
@@ -241,10 +242,6 @@ strong {
   background: var(--color-paper-3);
   border: 1px solid var(--color-rule);
   padding: var(--space-xs) var(--space-sm);
-}
-.demo {
-  background: var(--color-accent-2);
-  color: var(--color-ink);
 }
 .workspace,
 .reading {
@@ -1417,6 +1414,10 @@ textarea {
   .page-heading:has(.actions) {
     align-items: flex-start;
     flex-direction: column;
+  }
+  /* In the stacked admin header, logout stays in the second action column. */
+  .page-heading .actions:not(:has(.sync)) {
+    padding-inline-start: 110.7px;
   }
   .queue-row {
     flex-wrap: wrap;

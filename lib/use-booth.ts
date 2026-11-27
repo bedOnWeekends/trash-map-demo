@@ -6,7 +6,7 @@ let browserClient: ReturnType<typeof createClient> | undefined;
 export function useBooth(admin = false) {
   const [data, setData] = useState<Snapshot | null>(null),
     [error, setError] = useState(""),
-    [sync, setSync] = useState("연결 중"),
+    [sync, setSync] = useState(""),
     [busy, setBusy] = useState(false),
     [notice, setNotice] = useState("");
   const active = useRef(true),
@@ -72,7 +72,7 @@ export function useBooth(admin = false) {
       .subscribe((status) => {
         if (cancel) return;
         online = status === "SUBSCRIBED";
-        setSync(online ? "실시간 연결" : "주기적 동기화");
+        setSync(online ? "" : "주기적 동기화");
         if (online) queue();
       });
     queue();
