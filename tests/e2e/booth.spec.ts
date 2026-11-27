@@ -59,9 +59,13 @@ test("세 독립 브라우저에서 신고, 위치 지정, 설치, 실시간 및
       (await write(c, "admin/reset", before.epoch, { confirm: true })).ok(),
     ).toBeTruthy();
     await Promise.all([a.goto(base), b.goto(base)]);
-    await expect(
-      a.getByText("실시간 연결", { exact: true }).last(),
-    ).toBeVisible();
+    await expect(a.locator(".pin").first()).toBeVisible();
+    for (const page of [a, c]) {
+      await expect(page.getByText("데모", { exact: true })).toHaveCount(0);
+      await expect(page.getByText("실시간 연결", { exact: true })).toHaveCount(
+        0,
+      );
+    }
     const s = await snap(c, true),
       five = s.bins.find((x) => x.zone_id === "five")!,
       mixed = s.bins.find((x) => x.zone_id === "student")!,
