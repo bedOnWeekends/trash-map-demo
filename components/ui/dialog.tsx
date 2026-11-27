@@ -31,7 +31,22 @@ export function ConfirmDialog({
           <Dialog.Title>{title}</Dialog.Title>
           <Dialog.Description>{description}</Dialog.Description>
           {content}
-          {actions && <div className="dialog-actions">{actions}</div>}
+          {actions && (
+            <div
+              className="dialog-actions"
+              onTouchEnd={(event) => {
+                // Touch browsers can dispatch a button click for a tap in the gap.
+                const { clientX, clientY } = event.changedTouches[0];
+                if (
+                  document.elementFromPoint(clientX, clientY) ===
+                  event.currentTarget
+                )
+                  event.preventDefault();
+              }}
+            >
+              {actions}
+            </div>
+          )}
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
