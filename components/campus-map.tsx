@@ -287,7 +287,7 @@ export default function CampusMap({
               <path key={i} className="building" d={d + "Z"} />
             ))}
           </svg>
-          {zones.map((z) => (
+          {(zone ? [zone] : zones).map((z) => (
             <span className="map-label" key={z.id} style={position(z)}>
               {z.name}
             </span>

@@ -9,6 +9,13 @@
 | `/guide` | 6종 품목 분리배출 안내 |
 | `/admin` | 서버 PIN 로그인, 적재 통계, 건물별 수요, 승인·설치, 센서 및 초기화 |
 
+## 부스 접속
+
+- [학생용 지도](https://trash-map-demo.vercel.app/)
+- [관리자 대시보드](https://trash-map-demo.vercel.app/admin)
+- [인쇄용 학생 QR](public/booth-qr.png) · 720 × 720 PNG, 학생용 루트 URL로 디코딩 검증
+- Production 관리자 PIN은 운영자에게 별도로 전달합니다. 로컬 시연 PIN은 `1234`입니다.
+
 ## 로컬 실행
 
 Node 24, npm, Docker를 사용합니다. 패키지와 Supabase CLI 버전은 lockfile에 고정했습니다.
@@ -36,7 +43,7 @@ npm run dev
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | publishable 키. 로컬 CLI의 anon 키도 지원 |
 | `SUPABASE_SECRET_KEY` | 서버 전용 Supabase secret 키. 로컬에서는 service_role 키도 지원 |
 | `SUPABASE_BOOTH_RPC_TOKEN` | 서버 전용 대체 경로. 전용 Edge Function을 사용하는 배포에서는 이 값으로 위 서버 키를 대신함 |
-| `DEMO_ADMIN_PASSWORD` | 부스 로컬 시연 PIN은 `1234`. Production은 운영자가 Vercel에서 설정 |
+| `DEMO_ADMIN_PASSWORD` | 부스 로컬 시연 PIN은 `1234`. Production은 별도 난수 PIN을 Vercel Sensitive 변수로 관리 |
 | `DEMO_SESSION_SECRET` | `openssl rand -hex 32`로 생성한 독립 난수. 변경하면 기존 쿠키가 만료됨 |
 
 ## Supabase 배포
@@ -103,6 +110,14 @@ Hallmark 렌더 검증에는 Chromium과 puppeteer-core가 필요합니다. 앱�
 ```sh
 node .agents/skills/hallmark/scripts/sloplint.mjs app/globals.css components/student.tsx components/admin.tsx --scope app --genre modern-minimal --render --url http://localhost:3000/ --url http://localhost:3000/admin
 ```
+
+### 검증 기록
+
+전용 Supabase에 버전 관리된 마이그레이션 5개와 시드를 적용했습니다. 8개 건물 중심의 SQL 구역 판정, Realtime publication, 익명 역할의 업무 RPC 실행 차단을 확인했습니다. Vercel Production의 학생 지도와 학생 snapshot은 HTTP 200이었고, 응답에는 가상 거점 8개가 있었습니다.
+
+로컬에서 타입 검사, ESLint, Production 빌드, SQL·단위 테스트 8개와 Playwright 시나리오 2개가 통과했습니다. Playwright는 독립 Chromium 컨텍스트 세 개와 실제 로컬 Supabase를 사용했습니다. Hallmark 렌더 검증은 학생 지도와 로그인한 관리자 화면에서 FAIL 0, REFLEX 0이었습니다. 남은 WARN 4개는 공용 패널 표면 2건과 화면별 글꼴 굵기 수 2건입니다. 입력 테두리 대비, 스크롤 영역의 텍스트 가림, 작은 화면의 관리자 조작 버튼 줄바꿈을 수정했습니다.
+
+운영 주소의 다중 브라우저 시나리오는 검증 환경의 네트워크 터널 제한으로 실행하지 못했습니다. Kakao JavaScript 키와 도메인 등록 전에는 실제 카카오 타일 검증이 보류되며 가상 배치도가 표시됩니다.
 
 ## Vercel, 카카오 도메인과 QR
 

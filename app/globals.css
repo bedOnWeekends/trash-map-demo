@@ -193,7 +193,7 @@ strong {
   width: 38px;
   height: 38px;
   background: var(--color-accent);
-  color: var(--color-accent-2);
+  color: var(--color-accent-ink);
   display: grid;
   place-items: center;
   border-radius: 11px;
@@ -982,23 +982,11 @@ input[type="checkbox"] {
   gap: var(--space-3xs);
 }
 .bars i {
-  background: var(--color-accent);
-  color: var(--color-ink);
   font-style: normal;
   font-size: 11px;
   width: 12px;
   line-height: 1;
-  text-indent: 0;
-  position: relative;
-  display: flex;
-  align-items: start;
   justify-content: center;
-  padding-top: var(--space-3xs);
-  color: var(--color-paper-3);
-  min-height: 15px;
-}
-.bars i + i {
-  background: var(--can);
 }
 .trend-key {
   display: flex;
@@ -1415,4 +1403,24 @@ textarea {
 }
 .trend-key span + span:before {
   background: color-mix(in srgb, var(--can) 45%, var(--color-paper-3));
+}
+
+.actions button,
+.queue-row button {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.queue-row > div:last-child {
+  display: flex;
+  gap: var(--space-2xs);
+  flex-wrap: wrap;
+}
+@media (max-width: 480px) {
+  .page-heading:has(.actions) {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .queue-row {
+    flex-wrap: wrap;
+  }
 }

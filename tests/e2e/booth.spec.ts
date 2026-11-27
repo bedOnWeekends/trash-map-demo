@@ -117,6 +117,9 @@ test("세 독립 브라우저에서 신고, 위치 지정, 설치, 실시간 및
       (await snap(b)).requests.some((x) => x.reason === "부스 공개 시연"),
     ).toBe(false);
     await expect(c.locator(".rank-row").first()).toContainText("5호관");
+    await expect(c.locator(".rank-row").first().locator("b")).toHaveText(
+      String(score + 11),
+    );
     await c.locator(".rank-row").filter({ hasText: "5호관" }).click();
     await c.getByRole("button", { name: "설치 위치 지정" }).click();
     await c.getByRole("button", { name: "가상 위치로 건물 중심 선택" }).click();
