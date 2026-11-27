@@ -584,6 +584,11 @@ test("터치 지도 제스처, 직접 위치 지정, 안전 영역과 가로 시
       exact: true,
     });
     await expect(discard).toBeVisible();
+    await dialog.evaluate((el) =>
+      Promise.allSettled(
+        el.getAnimations().map((animation) => animation.finished),
+      ),
+    );
     const upper = (await resume.boundingBox())!;
     const lower = (await discard.boundingBox())!;
     expect(lower.y - (upper.y + upper.height)).toBe(12);
