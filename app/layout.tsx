@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import "./student-mobile.css";
 export const metadata: Metadata = {
   title: {
     default: "캠퍼스 순환지도 | 인하대학교 체험 부스",
@@ -12,6 +13,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  viewportFit: "cover",
+  interactiveWidget: "resizes-content",
   themeColor: "#F7FAFC",
 };
 export default function Root({ children }: { children: React.ReactNode }) {

@@ -1,11 +1,59 @@
 "use client";
+import { StudentShell, useMobileStudent } from "@/components/student-shell";
 import Link from "next/link";
-import { ClipboardList, ArrowRight } from "lucide-react";
+import { ClipboardList, ArrowRight, ChevronDown } from "lucide-react";
 import { Shell, Footer, LoadState, Sync } from "@/components/common";
 import { useBooth } from "@/lib/use-booth";
 import { labels, stateLabels, timeText, zoneName } from "@/lib/model";
 export default function Requests() {
   const b = useBooth();
+  const mobile = useMobileStudent();
+  if (mobile)
+    return (
+      <StudentShell sync={b.error ? "연결 확인 필요" : b.sync}>
+        <main className="mobile-reading">
+          <div className="reading-heading">
+            <h1>내 설치 건의</h1>
+            <p>이 브라우저에서 접수한 건의</p>
+          </div>
+          <div className="reading-scroll">
+            {(!b.data || b.error) && (
+              <LoadState error={b.error} retry={b.refresh} />
+            )}
+            {b.data?.requests.length === 0 && (
+              <div className="request-empty">
+                <ClipboardList size={36} />
+                <h2>아직 접수한 건의가 없어요</h2>
+                <Link href="/" className="primary">
+                  지도에서 건의하기
+                  <ArrowRight size={16} />
+                </Link>
+              </div>
+            )}
+            {b.data?.requests.map((r) => (
+              <details className="request-entry" key={r.id}>
+                <summary>
+                  <span className="request-title">
+                    <strong>{zoneName(r.zone_id)}</strong>
+                    <b className="status-tag" data-status={r.status}>
+                      {r.status === "approved"
+                        ? "승인 · 설치 예정"
+                        : stateLabels[r.status]}
+                    </b>
+                  </span>
+                  <span>
+                    {r.requested_waste_types.map((t) => labels[t]).join(" · ")}
+                  </span>
+                  <time dateTime={r.created_at}>{timeText(r.created_at)}</time>
+                  <ChevronDown size={16} />
+                </summary>
+                <p>{r.reason}</p>
+              </details>
+            ))}
+          </div>
+        </main>
+      </StudentShell>
+    );
   return (
     <>
       <Shell />

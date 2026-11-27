@@ -1,5 +1,26 @@
 [
  {
+  "mode": "redesign",
+  "depth": "full",
+  "scope": "app",
+  "shape": "app screen",
+  "theme": "wayfind",
+  "axes": "light/signage/blue",
+  "hero": "campus map",
+  "nav": "bottom tabs",
+  "footer": "map attribution",
+  "imagery": "interactive campus plan",
+  "signature": "item markers and a draggable station sheet",
+  "sections": [
+   "map",
+   "request wizard",
+   "request history",
+   "disposal guide"
+  ],
+  "prompt": "학생용 모바일 지도 앱 리디자인",
+  "date": "2026-11-27"
+ },
+ {
   "scope": "app",
   "shape": "app screen",
   "theme": "wayfind",

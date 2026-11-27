@@ -45,6 +45,29 @@ export function ItemIcon({
   const Icon = icons[kind];
   return <Icon size={size} strokeWidth={1.8} aria-hidden />;
 }
+export function StudentNav({ bottom = false }: { bottom?: boolean }) {
+  const pathname = usePathname();
+  return (
+    <nav className={bottom ? "student-tabs" : undefined} aria-label="학생 메뉴">
+      {(
+        [
+          ["/", "수거함 지도", Map],
+          ["/requests", "내 건의", ClipboardList],
+          ["/guide", "배출 안내", BookOpen],
+        ] as const
+      ).map(([href, name, Icon]) => (
+        <Link
+          key={href}
+          aria-current={pathname === href ? "page" : undefined}
+          href={href}
+        >
+          <Icon size={17} />
+          {name}
+        </Link>
+      ))}
+    </nav>
+  );
+}
 export function Shell({
   admin = false,
   sync,
@@ -52,7 +75,6 @@ export function Shell({
   admin?: boolean;
   sync?: string;
 }) {
-  const pathname = usePathname();
   return (
     <header className="top">
       <div className="top-inner">
@@ -67,32 +89,19 @@ export function Shell({
           />
           <span>캠퍼스 순환지도</span>
         </Link>
-        {!admin && (
-          <nav aria-label="학생 메뉴">
-            {(
-              [
-                ["/", "수거함 지도", Map],
-                ["/requests", "내 건의", ClipboardList],
-                ["/guide", "배출 안내", BookOpen],
-              ] as const
-            ).map(([href, name, Icon]) => (
-              <Link
-                key={href}
-                aria-current={pathname === href ? "page" : undefined}
-                href={href}
-              >
-                <Icon size={17} />
-                {name}
-              </Link>
-            ))}
-          </nav>
-        )}
+        {!admin && <StudentNav />}
         <span className="booth-label">
-          {admin ? "관리자 콘솔" : "인하대학교 체험 부스"}
+          <span className="campus-name">
+            {admin ? "관리자 콘솔" : "인하대학교 체험 부스"}
+          </span>
           <span className="demo">데모</span>
         </span>
+        {sync && (
+          <span className="shell-sync">
+            <Sync text={sync} />
+          </span>
+        )}
       </div>
-      {sync && <span className="visually-hidden">{sync}</span>}
     </header>
   );
 }
