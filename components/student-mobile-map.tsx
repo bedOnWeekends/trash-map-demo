@@ -134,6 +134,7 @@ export function MobileMap({ booth }: { booth: Booth }) {
     setSnap(next);
     if (next === "peek") select("");
   }, []);
+  const closeDetail = useCallback(() => settleSheet("peek"), [settleSheet]);
   const revealRequest = useRef(0);
   function cancelReveal() {
     revealRequest.current++;
@@ -184,8 +185,9 @@ export function MobileMap({ booth }: { booth: Booth }) {
         <div className="mobile-map-stage" inert={!!step && step > 1}>
           <CampusMap
             pins={pins}
-            selected={draft?.point ? "candidate" : selected}
+            selected={draft?.point ? "candidate" : current?.id}
             onSelect={choose}
+            onDeselect={draft ? undefined : closeDetail}
             onPick={pick}
             picking={step === 1}
             mobile
@@ -342,13 +344,7 @@ export function MobileMap({ booth }: { booth: Booth }) {
                 ) : query || filter ? (
                   <button onClick={reset}>검색·필터 초기화</button>
                 ) : null}
-                <button
-                  aria-label="시트 닫기"
-                  onClick={() => {
-                    select("");
-                    setSnap("peek");
-                  }}
-                >
+                <button aria-label="시트 닫기" onClick={closeDetail}>
                   <ChevronDown size={16} />
                   닫기
                 </button>

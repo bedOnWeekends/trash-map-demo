@@ -1,6 +1,8 @@
 "use client";
 import {
+  useCallback,
   useEffect,
+  useEffectEvent,
   useImperativeHandle,
   useRef,
   useState,
@@ -30,6 +32,8 @@ export type Pin = Point & {
   count?: number;
   warning?: number;
 };
+const doubleTapMs = 350;
+const doubleTapRadius = 28;
 const center = { lat: 37.45003, lng: 126.65384 };
 const roads = landscapeData as [string, number[][]][];
 const xy = (lng: number, lat: number) => [
@@ -196,6 +200,7 @@ export default function CampusMap({
   pins,
   selected,
   onSelect,
+  onDeselect,
   onPick,
   zone,
   picking = false,
@@ -205,6 +210,7 @@ export default function CampusMap({
   pins: Pin[];
   selected?: string;
   onSelect: (p: Pin) => void;
+  onDeselect?: () => void;
   onPick?: (p: Point) => void;
   zone?: Zone;
   picking?: boolean;
@@ -230,11 +236,54 @@ export default function CampusMap({
   const wide = isCompactLandscape(size.w, size.h);
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const moved = useRef(false);
-  const start = useRef({ x: 0, y: 0 });
-  const pickRef = useRef(onPick);
+  const start = useRef({ x: 0, y: 0, time: 0 });
+  const lastTap = useRef<{ x: number; y: number; time: number } | null>(null);
+  const deselectTimer = useRef<number | undefined>(undefined);
+  const cancelDeselect = useCallback(
+    () => window.clearTimeout(deselectTimer.current),
+    [],
+  );
+  const singleTap = useCallback(() => {
+    cancelDeselect();
+    if (selected && onDeselect && !picking)
+      deselectTimer.current = window.setTimeout(onDeselect, doubleTapMs);
+  }, [cancelDeselect, selected, onDeselect, picking]);
+
   useEffect(() => {
-    pickRef.current = onPick;
-  }, [onPick]);
+    if (!onDeselect || picking) return;
+    // A second interaction may start on a different pin, the sheet or a toolbar.
+    // Cancel the first tap before that interaction can change the selection.
+    const interrupt = (e: Event) => {
+      cancelDeselect();
+      if (
+        !(e.target instanceof Element) ||
+        !e.target.closest(".schematic") ||
+        e.target.closest("button,a") ||
+        e.type !== "pointerdown"
+      )
+        lastTap.current = null;
+    };
+    window.addEventListener("pointerdown", interrupt, true);
+    window.addEventListener("wheel", interrupt, {
+      capture: true,
+      passive: true,
+    });
+    window.addEventListener("keydown", interrupt, true);
+    return () => {
+      cancelDeselect();
+      lastTap.current = null;
+      window.removeEventListener("pointerdown", interrupt, true);
+      window.removeEventListener("wheel", interrupt, true);
+      window.removeEventListener("keydown", interrupt, true);
+    };
+  }, [cancelDeselect, selected, onDeselect, picking, map]);
+  const nativeClick = useEffectEvent(
+    (e: kakao.maps.event.MouseEvent, handledGesture: boolean) => {
+      if (picking || !onDeselect) {
+        onPick?.({ lat: e.latLng.getLat(), lng: e.latLng.getLng() });
+      } else if (!handledGesture) singleTap();
+    },
+  );
   const reduced = useReducedMotion();
   useEffect(() => {
     let cancelled = false;
@@ -252,10 +301,30 @@ export default function CampusMap({
             kakao.maps.CopyrightPosition.BOTTOMRIGHT,
             false,
           );
+        const element = host.current;
+        let handledGesture = false;
+        const beginGesture = () => {
+          handledGesture = false;
+        };
+        const skipTap = () => {
+          handledGesture = true;
+          cancelDeselect();
+        };
         const onClick = (e: kakao.maps.event.MouseEvent) =>
-          pickRef.current?.({ lat: e.latLng.getLat(), lng: e.latLng.getLng() });
+          nativeClick(e, handledGesture);
+        // The SDK reports background clicks after hit testing clickable overlays.
+        // Some zoom sequences also emit a click, in either event order.
+        const gestures = ["dblclick", "dragstart", "zoom_start"];
+        element.addEventListener("pointerdown", beginGesture, true);
         kakao.maps.event.addListener(m, "click", onClick);
-        release = () => kakao.maps.event.removeListener(m, "click", onClick);
+        for (const name of gestures)
+          kakao.maps.event.addListener(m, name, skipTap);
+        release = () => {
+          element.removeEventListener("pointerdown", beginGesture, true);
+          kakao.maps.event.removeListener(m, "click", onClick);
+          for (const name of gestures)
+            kakao.maps.event.removeListener(m, name, skipTap);
+        };
         let width = host.current.clientWidth,
           height = host.current.clientHeight;
         observer = new ResizeObserver(([entry]) => {
@@ -284,7 +353,7 @@ export default function CampusMap({
       observer?.disconnect();
       release();
     };
-  }, [attempt, mobile]);
+  }, [attempt, mobile, cancelDeselect]);
   useEffect(() => {
     if (!surface.current) return;
     const o = new ResizeObserver(([e]) => {
@@ -454,6 +523,7 @@ export default function CampusMap({
       className={"pin kind-" + p.kind + (selected === p.id ? " chosen" : "")}
       onClick={(e) => {
         e.stopPropagation();
+        cancelDeselect();
         onSelect(p);
       }}
     >
@@ -483,11 +553,17 @@ export default function CampusMap({
           className="schematic"
           onPointerDown={(e) => {
             stopPan();
+            if (e.button !== 0) return;
+            const multiple = pointers.current.size > 0 || !e.isPrimary;
+            if (multiple) {
+              moved.current = true;
+              lastTap.current = null;
+            }
             if ((e.target as Element).closest("button,a")) return;
-            if (!pointers.current.size) {
+            if (!multiple) {
               moved.current = false;
-              start.current = { x: e.clientX, y: e.clientY };
-            } else moved.current = true;
+              start.current = { x: e.clientX, y: e.clientY, time: e.timeStamp };
+            }
             pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
             e.currentTarget.setPointerCapture(e.pointerId);
           }}
@@ -525,16 +601,25 @@ export default function CampusMap({
                 4
               )
                 moved.current = true;
-              if (moved.current)
+              if (moved.current) {
+                lastTap.current = null;
                 move((p) => ({
                   x: p.x + next.x - old.x,
                   y: p.y + next.y - old.y,
                 }));
+              }
             }
           }}
           onPointerCancel={(e) => {
             pointers.current.delete(e.pointerId);
             moved.current = true;
+            lastTap.current = null;
+          }}
+          onLostPointerCapture={(e) => {
+            if (pointers.current.delete(e.pointerId)) {
+              moved.current = true;
+              lastTap.current = null;
+            }
           }}
           onPointerUp={(e) => {
             if (
@@ -543,7 +628,47 @@ export default function CampusMap({
               pointers.current.size
             )
               return;
+            if (
+              Math.hypot(
+                e.clientX - start.current.x,
+                e.clientY - start.current.y,
+              ) > 4
+            )
+              return;
             const rect = e.currentTarget.getBoundingClientRect();
+            if (!picking && onDeselect) {
+              if (e.timeStamp - start.current.time > 500) {
+                lastTap.current = null;
+                return;
+              }
+              const previous = lastTap.current;
+              if (
+                previous &&
+                e.timeStamp - previous.time <= doubleTapMs &&
+                Math.hypot(e.clientX - previous.x, e.clientY - previous.y) <=
+                  doubleTapRadius
+              ) {
+                lastTap.current = null;
+                cancelDeselect();
+                const nextScale = Math.min(4, scale * 1.32);
+                const ratio = nextScale / scale;
+                const x = e.clientX - rect.left - rect.width / 2,
+                  y = e.clientY - rect.top - rect.height / 2 - offsetY;
+                animateCamera(
+                  x - (x - pan.x) * ratio,
+                  y - (y - pan.y) * ratio,
+                  nextScale,
+                );
+              } else {
+                lastTap.current = {
+                  x: e.clientX,
+                  y: e.clientY,
+                  time: e.timeStamp,
+                };
+                singleTap();
+              }
+              return;
+            }
             onPick?.({
               lng: center.lng + (ox + (e.clientX - rect.left) / factor) / 95500,
               lat: center.lat - (oy + (e.clientY - rect.top) / factor) / 120000,

@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -53,6 +53,7 @@ function StudentScreen({ booth }: { booth: ReturnType<typeof useBooth> }) {
     );
   const current = bins.find((b) => b.id === selected),
     zone = point ? zoneAt(point) : null;
+  const clearSelection = useCallback(() => select(""), []);
   const choose = (p: Pin) => {
     if (requesting) return;
     select(p.id);
@@ -278,8 +279,9 @@ function StudentScreen({ booth }: { booth: ReturnType<typeof useBooth> }) {
           <section className="map-column">
             <CampusMap
               pins={pins}
-              selected={selected}
+              selected={current?.id}
               onSelect={choose}
+              onDeselect={requesting ? undefined : clearSelection}
               onPick={pick}
               picking={requesting}
             />
