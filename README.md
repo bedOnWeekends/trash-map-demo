@@ -90,7 +90,7 @@ where pubname='supabase_realtime' and tablename='demo_revision';
 npx --yes skills add nutlope/hallmark --skill hallmark --agent codex --yes
 ```
 
-설치 경로는 `.agents/skills/hallmark/`입니다. Hallmark 2.0.0의 Wayfind 앱 화면 지침을 바탕으로 녹색 안내 표지, 한글 가변 글꼴, 품목별 고정색, 지도와 목록의 계층을 구성했습니다. 모바일 시트, 패널 이동, 선택 핀, 순위 이동은 reduced-motion을 지원합니다. 대비, 간격 토큰, 텍스트 가림을 렌더 검증한 뒤 수정했습니다.
+설치 경로는 `.agents/skills/hallmark/`입니다. Hallmark 2.0.0의 Wayfind 앱 화면 지침을 바탕으로 한글 가변 글꼴, 품목별 고정색, 지도와 목록의 계층을 구성했습니다. 학생·관리자 화면은 인하대학교 심벌과 파란색 포인트(`#005BAC`, `#00AFEC`), 기본 배경색 `#F7FAFC`를 공유합니다. 모바일 시트, 패널 이동, 선택 핀, 순위 이동은 reduced-motion을 지원합니다. 대비, 간격 토큰, 텍스트 가림을 렌더 검증한 뒤 수정했습니다.
 
 ## 테스트
 

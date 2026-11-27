@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   Map,
@@ -56,9 +57,14 @@ export function Shell({
     <header className="top">
       <div className="top-inner">
         <Link className="brand" href="/">
-          <span className="brand-mark">
-            <Recycle size={25} />
-          </span>
+          <Image
+            src="/icon.svg"
+            className="brand-mark"
+            width={38}
+            height={38}
+            alt=""
+            unoptimized
+          />
           <span>캠퍼스 순환지도</span>
         </Link>
         {!admin && (

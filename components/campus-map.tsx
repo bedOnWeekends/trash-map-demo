@@ -146,7 +146,7 @@ export default function CampusMap({
           strokeWeight: z.id === zone?.id ? 3 : 1,
           strokeColor: colors.getPropertyValue("--color-accent").trim(),
           strokeOpacity: z.id === zone?.id ? 1 : 0.32,
-          fillColor: colors.getPropertyValue("--liquid").trim(),
+          fillColor: colors.getPropertyValue("--color-accent-2").trim(),
           fillOpacity: z.id === zone?.id ? 0.18 : 0.035,
         }),
     );

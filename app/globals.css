@@ -1,6 +1,6 @@
 /* Hallmark · shape: app screen · genre: modern-minimal · theme: Wayfind (deal 1/3, seed green-campus-recycling-map-2601·55f7ab85·2026-11-27·r0)
  * nav: top bar · signature: campus plan and fixed item markers · states: loading, empty, error, full · wayfind: platform
- * axes: light/signage/green · posture: committed · v2.0.0 */
+ * axes: light/signage/blue · posture: committed · v2.0.0 */
 /* Hallmark · pre-emit critique: P4 H4 E4 S4 R4 V4 · weakest: density, moved secondary actions into a sheet. */
 /* waive 64: Korean labels use a local Korean sans; numeric measures use tabular figures. */
 @import "tailwindcss" source(none);
@@ -13,16 +13,16 @@
   --font-body:
     "Noto Sans KR Variable", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
   --font-display: var(--font-body);
-  --color-paper: #f6f7f2;
-  --color-paper-2: #e8eee4;
+  --color-paper: #F7FAFC;
+  --color-paper-2: #e5eef5;
   --color-paper-3: #fff;
-  --color-ink: #172d23;
-  --color-muted: #53675b;
-  --color-rule: #cdd7cc;
-  --color-accent: #185a3c;
+  --color-ink: #172d40;
+  --color-muted: #506477;
+  --color-rule: #cbd8e2;
+  --color-accent: #005BAC;
   --color-accent-ink: #fff;
-  --color-accent-2: #cfed8a;
-  --color-focus: #176894;
+  --color-accent-2: #00AFEC;
+  --color-focus: var(--color-accent);
   --general: #52616a;
   --plastic: #316bb0;
   --paper: #875a36;
@@ -32,21 +32,21 @@
   --mixed: #7351a8;
   --candidate: #156ba9;
   --warn: #a43d2f;
-  --subtle: #eef3eb;
-  --map-bg: #e4eadc;
-  --building: #d2d6c6;
-  --building-edge: #b9c0ae;
-  --road: #fafaf3;
+  --subtle: color-mix(in srgb, var(--color-accent-2) 8%, var(--color-paper));
+  --map-bg: #e8eff3;
+  --building: #d0dce5;
+  --building-edge: #adbdca;
+  --road: var(--color-paper-3);
   --lawn: #c3d6b8;
-  --water: #a8cacc;
-  --zone: #80977c;
-  --selected: #d8e7c9;
+  --water: #afdbe9;
+  --zone: #708599;
+  --selected: color-mix(in srgb, var(--color-accent-2) 18%, var(--map-bg));
   --empty: #77827d;
   --ok: #2e7650;
   --mid: #916819;
-  --shadow: 0 6px 20px #19332618;
-  --scrim: #152b2380;
-  --pinshadow: #233b2c42;
+  --shadow: 0 6px 20px #17324b18;
+  --scrim: #152b4080;
+  --pinshadow: #23384b42;
   --round: 10px;
   --container: 1600px;
   --display-weight: 750;
@@ -192,11 +192,8 @@ strong {
 .brand-mark {
   width: 38px;
   height: 38px;
-  background: var(--color-accent);
-  color: var(--color-accent-ink);
-  display: grid;
-  place-items: center;
-  border-radius: 11px;
+  object-fit: contain;
+  flex: none;
 }
 .top nav {
   display: flex;
@@ -214,7 +211,7 @@ strong {
 }
 .top nav a[aria-current] {
   color: var(--color-accent);
-  border-bottom-color: var(--color-accent);
+  border-bottom-color: var(--color-accent-2);
 }
 .booth-label {
   margin-left: auto;
@@ -241,6 +238,10 @@ strong {
   background: var(--color-paper-3);
   border: 1px solid var(--color-rule);
   padding: var(--space-xs) var(--space-sm);
+}
+.demo {
+  background: var(--color-accent-2);
+  color: var(--color-ink);
 }
 .workspace,
 .reading {
@@ -1000,10 +1001,6 @@ input[type="checkbox"] {
   width: 8px;
   height: 8px;
   margin-right: var(--space-2xs);
-  background: var(--color-accent);
-}
-.trend-key span + span:before {
-  background: var(--can);
 }
 .admin-grid {
   display: grid;
@@ -1387,7 +1384,6 @@ textarea {
 }
 .bars i::before {
   content: "";
-  background: var(--lawn);
   position: absolute;
   inset: 0;
   z-index: -1;
@@ -1395,14 +1391,13 @@ textarea {
   transform: scaleY(var(--ratio));
   transition: transform 0.28s;
 }
-.bars i + i::before {
-  background: color-mix(in srgb, var(--can) 45%, var(--color-paper-3));
-}
+.bars i::before,
 .trend-key span:before {
-  background: var(--lawn);
+  background: var(--color-accent-2);
 }
+.bars i + i::before,
 .trend-key span + span:before {
-  background: color-mix(in srgb, var(--can) 45%, var(--color-paper-3));
+  background: color-mix(in srgb, var(--color-accent) 38%, var(--color-paper-3));
 }
 
 .actions button,
