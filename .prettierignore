@@ -1,0 +1,7 @@
+.agents/
+.next/
+.hallmark/
+node_modules/
+lib/footprints.json
+lib/landscape.json
+lib/zones.json

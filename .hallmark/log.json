@@ -1,0 +1,22 @@
+[
+ {
+  "scope": "app",
+  "shape": "app screen",
+  "theme": "wayfind",
+  "axes": "light/signage/green",
+  "hero": "map",
+  "nav": "top bar",
+  "footer": "campus attribution",
+  "imagery": "interactive campus plan",
+  "signature": "fixed-color item markers and fill detail",
+  "sections": [
+   "map",
+   "stations",
+   "priority",
+   "siting"
+  ],
+  "prompt": "인하대학교 학생 참여형 분리수거 지도 및 관리자 콘솔",
+  "date": "2026-11-27",
+  "mode": "build"
+ }
+]

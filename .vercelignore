@@ -1,0 +1,4 @@
+.agents/
+.hallmark/
+test-results/
+playwright-report/
