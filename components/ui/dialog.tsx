@@ -8,14 +8,16 @@ export function ConfirmDialog({
   onOpenChange,
   title,
   description,
-  children,
+  content,
+  children: actions,
   sheet = false,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   title: string;
   description: string;
-  children: ReactNode;
+  children?: ReactNode;
+  content?: ReactNode;
   sheet?: boolean;
 }) {
   return (
@@ -28,7 +30,8 @@ export function ConfirmDialog({
           </Dialog.Close>
           <Dialog.Title>{title}</Dialog.Title>
           <Dialog.Description>{description}</Dialog.Description>
-          {children}
+          {content}
+          {actions && <div className="dialog-actions">{actions}</div>}
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

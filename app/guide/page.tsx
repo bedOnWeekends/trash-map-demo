@@ -69,9 +69,8 @@ export default function Guide() {
             }}
             title={item ? labels[item] : "배출 방법"}
             description={item ? tips[item][0] : ""}
-          >
-            {item && <p>{tips[item][1]}</p>}
-          </ConfirmDialog>
+            content={item && <p>{tips[item][1]}</p>}
+          />
         </main>
       </StudentShell>
     );

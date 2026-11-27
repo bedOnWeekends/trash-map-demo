@@ -577,7 +577,27 @@ test("터치 지도 제스처, 직접 위치 지정, 안전 영역과 가로 시
       animations: "disabled",
     });
     await page.getByRole("button", { name: "건의 작성 취소" }).click();
-    await page.getByRole("button", { name: "작성 취소", exact: true }).click();
+    const dialog = page.getByRole("dialog");
+    const resume = dialog.getByRole("button", { name: "계속 작성" });
+    const discard = dialog.getByRole("button", {
+      name: "작성 취소",
+      exact: true,
+    });
+    await expect(discard).toBeVisible();
+    const upper = (await resume.boundingBox())!;
+    const lower = (await discard.boundingBox())!;
+    expect(lower.y - (upper.y + upper.height)).toBe(12);
+    expect(lower.x).toBe(upper.x);
+    expect(lower.width).toBe(upper.width);
+    expect(lower.height).toBe(upper.height);
+    expect(lower.height).toBeGreaterThanOrEqual(44);
+    await expect(discard).toHaveCSS(
+      "border-radius",
+      await resume.evaluate((button) => getComputedStyle(button).borderRadius),
+    );
+    await page.touchscreen.tap(upper.x + upper.width / 2, lower.y - 6);
+    await expect(dialog).toBeVisible();
+    await discard.tap();
     await page.setViewportSize({ width: 844, height: 390 });
     await page.getByRole("button", { name: "목록 펼치기" }).click();
     const handle = page.locator(".sheet-handle");
