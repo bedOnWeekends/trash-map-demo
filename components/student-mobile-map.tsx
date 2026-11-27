@@ -1,5 +1,12 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { AnimatedNumber, Swap, ContentReveal } from "./motion/patterns";
+import {
+  useCallback,
+  useLayoutEffect,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   ArrowLeft,
   ChevronDown,
@@ -10,13 +17,14 @@ import {
   X,
 } from "lucide-react";
 import * as Dialog from "@radix-ui/react-dialog";
+import { useInstalledBins } from "./motion/data";
 import CampusMap, {
   MapControls,
   type MobileCamera,
   type Pin,
 } from "./campus-map";
 import { ItemIcon, LoadState, Notice } from "./common";
-import { StudentShell } from "./student-shell";
+
 import {
   BinDetail,
   StationList,
@@ -44,8 +52,14 @@ import type { Booth } from "@/lib/use-booth";
 
 import { StationSheet, type Snap } from "./station-sheet";
 const frequent: Waste[] = ["general", "plastic", "paper"];
-export function MobileMap({ booth }: { booth: Booth }) {
-  const { data, error, sync, busy, mutate, notify } = booth;
+export function MobileMap({
+  booth,
+  active,
+}: {
+  booth: Booth;
+  active: boolean;
+}) {
+  const { data, error, busy, mutate, notify } = booth;
   const [query, search] = useState(""),
     [filter, setFilter] = useState<Waste | null>(null);
   const [selected, select] = useState(""),
@@ -69,6 +83,7 @@ export function MobileMap({ booth }: { booth: Booth }) {
     saveDraft(data?.epoch, next);
     setDraft(next);
   };
+  const fresh = useInstalledBins(data?.bins, data?.epoch);
   const bins = data?.bins ?? [];
   const filtered = bins.filter(
     (b) =>
@@ -78,6 +93,14 @@ export function MobileMap({ booth }: { booth: Booth }) {
         .includes(query.trim().toLowerCase()),
   );
   const current = bins.find((b) => b.id === selected);
+  const contentId = current?.id ?? "list";
+  const [previous, remember] = useState(contentId);
+  const [direction, setDirection] = useState(0);
+  if (previous !== contentId) {
+    remember(contentId);
+    setDirection(contentId === "list" ? -1 : previous === "list" ? 1 : 0);
+  }
+  const listScroll = useRef(0);
   const visibleChips =
     filter && !frequent.includes(filter)
       ? [frequent[0], frequent[1], filter]
@@ -116,7 +139,10 @@ export function MobileMap({ booth }: { booth: Booth }) {
     }
     changeDraft({ ...draft, point: { lat: p.lat, lng: p.lng } });
   };
-  const pins = (draft ? bins : filtered).map(binPin);
+  const pins: Pin[] = (draft ? bins : filtered).map((b) => ({
+    ...binPin(b),
+    fresh: fresh.has(b.id),
+  }));
   if (draft?.point)
     pins.push({
       ...draft.point,
@@ -167,16 +193,26 @@ export function MobileMap({ booth }: { booth: Booth }) {
         );
     });
   }
-  useEffect(() => {
-    layer.current?.querySelector(".sheet-scroll")?.scrollTo(0, 0);
-  }, [selected]);
+  useLayoutEffect(() => {
+    layer.current
+      ?.querySelector(".sheet-scroll")
+      ?.scrollTo(0, contentId === "list" ? listScroll.current : 0);
+  }, [contentId]);
   return (
-    <StudentShell sync={error ? "연결 확인 필요" : sync}>
+    <>
       <main
         className="mobile-workbench"
         onPointerDownCapture={cancelReveal}
         onWheelCapture={cancelReveal}
         onKeyDownCapture={cancelReveal}
+        onScrollCapture={(e) => {
+          if (
+            !current &&
+            e.target instanceof Element &&
+            e.target.matches(".sheet-scroll")
+          )
+            listScroll.current = e.target.scrollTop;
+        }}
         data-snap={snap}
         data-step={step}
         data-feedback={draft && booth.notice ? true : undefined}
@@ -212,8 +248,12 @@ export function MobileMap({ booth }: { booth: Booth }) {
                       setSnap("half");
                     }}
                   />
-                  {query && (
+                  {
                     <button
+                      className="clear-search"
+                      data-visible={!!query}
+                      inert={!query}
+                      aria-hidden={!query}
                       aria-label="검색어 지우기"
                       onClick={() => {
                         search("");
@@ -222,7 +262,7 @@ export function MobileMap({ booth }: { booth: Booth }) {
                     >
                       <X size={17} />
                     </button>
-                  )}
+                  }
                   <button
                     className="filter-trigger"
                     aria-label="전체 품목 필터"
@@ -254,7 +294,7 @@ export function MobileMap({ booth }: { booth: Booth }) {
                 </div>
               </div>
             )}
-            {!draft && <Notice text={booth.notice} />}
+            {!draft && <Notice kind={booth.noticeKind} text={booth.notice} />}
             <div className="map-tool-space">
               <div className="map-actions">
                 {!draft && (
@@ -326,7 +366,11 @@ export function MobileMap({ booth }: { booth: Booth }) {
                     <List size={18} />
                   )}
                   {current ? current.name : "수거 거점"}
-                  {!current && <b>{data ? filtered.length : "…"}</b>}
+                  {!current && (
+                    <b>
+                      {data ? <AnimatedNumber value={filtered.length} /> : "…"}
+                    </b>
+                  )}
                 </>
               }
             >
@@ -349,36 +393,41 @@ export function MobileMap({ booth }: { booth: Booth }) {
                   닫기
                 </button>
               </div>
-              {current ? (
-                <BinDetail
-                  compact
-                  current={current}
-                  confirmReport={setReport}
-                />
-              ) : (
-                <>
-                  {(!data || error) && (
-                    <LoadState error={error} retry={booth.refresh} />
-                  )}
-                  {data && !filtered.length && (
-                    <p className="empty">
-                      일치하는 거점이 없어요. 검색어나 품목을 바꿔 보세요.
-                    </p>
-                  )}
-                  <StationList
-                    filtered={filtered}
-                    choose={(pin) => {
-                      choose(pin);
-                      reveal(pin);
-                    }}
+              <Swap identity={contentId} direction={direction}>
+                {current ? (
+                  <BinDetail
+                    compact
+                    current={current}
+                    confirmReport={setReport}
                   />
-                </>
-              )}
+                ) : (
+                  <>
+                    <ContentReveal kind="stations" ready={!!data} error={error}>
+                      {error && (
+                        <LoadState error={error} retry={booth.refresh} />
+                      )}
+                      {data && !filtered.length && (
+                        <p className="empty empty-reveal">
+                          <Search size={18} aria-hidden />
+                          일치하는 거점이 없어요. 검색어나 품목을 바꿔 보세요.
+                        </p>
+                      )}
+                      <StationList
+                        filtered={filtered}
+                        choose={(pin) => {
+                          choose(pin);
+                          reveal(pin);
+                        }}
+                      />
+                    </ContentReveal>
+                  </>
+                )}
+              </Swap>
             </StationSheet>
           )}
         </div>
       </main>
-      <Dialog.Root open={filterOpen} onOpenChange={openFilter}>
+      <Dialog.Root open={active && filterOpen} onOpenChange={openFilter}>
         <Dialog.Portal>
           <Dialog.Overlay className="scrim" />
           <Dialog.Content
@@ -415,20 +464,22 @@ export function MobileMap({ booth }: { booth: Booth }) {
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
-      <ReportDialog report={report} confirmReport={setReport} booth={booth} />
+      <ReportDialog
+        report={active ? report : null}
+        confirmReport={setReport}
+        booth={booth}
+      />
       <ConfirmDialog
-        open={discard}
+        open={active && discard}
         onOpenChange={askDiscard}
         title="건의 작성을 취소할까요?"
         description="취소하면 작성한 위치, 품목과 사유가 지워집니다."
       >
-        <button onClick={() => askDiscard(false)}>
-          계속 작성
-        </button>
+        <button onClick={() => askDiscard(false)}>계속 작성</button>
         <button className="primary" onClick={closeDraft}>
           작성 취소
         </button>
       </ConfirmDialog>
-    </StudentShell>
+    </>
   );
 }

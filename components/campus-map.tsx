@@ -10,7 +10,12 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import {
+  AnimatePresence,
+  motion,
+  useIsPresent,
+  useReducedMotion,
+} from "motion/react";
 import {
   Plus,
   Minus,
@@ -25,7 +30,9 @@ import landscapeData from "@/lib/landscape.json";
 import { loadKakao } from "@/lib/kakao";
 import { ConfirmDialog } from "./ui/dialog";
 import { ItemIcon, type PinKind } from "./common";
+import { duration, scale as motionScale } from "@/lib/motion";
 export type Pin = Point & {
+  fresh?: boolean;
   id: string;
   kind: PinKind;
   name: string;
@@ -169,6 +176,42 @@ function KakaoOverlay({
     return () => overlay.setMap(null);
   }, [map, el, pin.lat, pin.lng, pin.kind, active]);
   return createPortal(children, el);
+}
+function PinControl({
+  p,
+  selected,
+  onSelect,
+}: {
+  p: Pin;
+  selected?: string;
+  onSelect: (p: Pin) => void;
+}) {
+  const present = useIsPresent();
+  return (
+    <button
+      type="button"
+      inert={!present}
+      aria-hidden={!present || undefined}
+      title={p.name}
+      data-new-installation={p.fresh || undefined}
+      aria-label={p.name}
+      aria-pressed={selected === p.id}
+      className={"pin kind-" + p.kind + (selected === p.id ? " chosen" : "")}
+      onClick={(e) => {
+        e.stopPropagation();
+        onSelect(p);
+      }}
+    >
+      <ItemIcon kind={p.kind} size={20} />
+      {!!p.warning && (
+        <span className="pin-count warn">
+          <TriangleAlert size={10} />
+          {p.warning}
+        </span>
+      )}
+      {!!p.count && p.count > 1 && <span className="pin-count">{p.count}</span>}
+    </button>
+  );
 }
 export type MobileCamera = {
   reveal: (point: Point, visible: DOMRect) => void;
@@ -514,28 +557,15 @@ export default function CampusMap({
       } else animateCamera(pan.x + dx, pan.y + dy);
     },
   }));
-  const pinButton = (p: Pin) => (
-    <button
-      type="button"
-      title={p.name}
-      aria-label={p.name}
-      aria-pressed={selected === p.id}
-      className={"pin kind-" + p.kind + (selected === p.id ? " chosen" : "")}
-      onClick={(e) => {
-        e.stopPropagation();
+  const pinButton = (pin: Pin) => (
+    <PinControl
+      p={pin}
+      selected={selected}
+      onSelect={(p) => {
         cancelDeselect();
         onSelect(p);
       }}
-    >
-      <ItemIcon kind={p.kind} size={20} />
-      {!!p.warning && (
-        <span className="pin-count warn">
-          <TriangleAlert size={10} />
-          {p.warning}
-        </span>
-      )}
-      {!!p.count && p.count > 1 && <span className="pin-count">{p.count}</span>}
-    </button>
+    />
   );
   return (
     <div
@@ -724,10 +754,22 @@ export default function CampusMap({
                 }
                 className="pin-anchor"
                 style={position(p)}
-                initial={{ opacity: 0, scale: 0.7 }}
-                animate={{ opacity: 1, scale: 1 }}
+                initial={{ opacity: 0, scale: motionScale.select }}
+                animate={{
+                  opacity: 1,
+                  scale:
+                    p.fresh && !reduced
+                      ? [motionScale.select, motionScale.emphasis, 1]
+                      : 1,
+                }}
                 exit={{ opacity: 0, scale: 0.85 }}
-                transition={{ duration: reduced ? 0 : 0.18 }}
+                transition={{
+                  duration: reduced
+                    ? 0
+                    : p.fresh
+                      ? duration.emphasis
+                      : duration.fast,
+                }}
               >
                 {pinButton(p)}
               </motion.div>
@@ -746,10 +788,22 @@ export default function CampusMap({
             >
               <motion.div
                 key={p.kind === "candidate" ? p.lat + ":" + p.lng : p.id}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
+                initial={{ opacity: 0, scale: motionScale.select }}
+                animate={{
+                  opacity: 1,
+                  scale:
+                    p.fresh && !reduced
+                      ? [motionScale.select, motionScale.emphasis, 1]
+                      : 1,
+                }}
                 exit={{ opacity: 0, scale: 0.85 }}
-                transition={{ duration: reduced ? 0 : 0.18 }}
+                transition={{
+                  duration: reduced
+                    ? 0
+                    : p.fresh
+                      ? duration.emphasis
+                      : duration.fast,
+                }}
               >
                 {pinButton(p)}
               </motion.div>

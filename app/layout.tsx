@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
+import { MotionPolicy } from "@/components/motion/patterns";
 import "./globals.css";
 import "./student-mobile.css";
+import "./motion.css";
 export const metadata: Metadata = {
   title: {
     default: "캠퍼스 순환지도 | 인하대학교 체험 부스",
@@ -20,7 +22,9 @@ export const viewport: Viewport = {
 export default function Root({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko">
-      <body>{children}</body>
+      <body>
+        <MotionPolicy>{children}</MotionPolicy>
+      </body>
     </html>
   );
 }

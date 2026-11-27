@@ -1,5 +1,6 @@
 "use client";
 import {
+  createContext,
   useLayoutEffect,
   useRef,
   useState,
@@ -8,6 +9,7 @@ import {
 } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 
+export const SheetDragging = createContext(false);
 export type Snap = "peek" | "half" | "expanded";
 type Stop = { snap: Snap; height: number };
 type Drag = {
@@ -195,7 +197,9 @@ export function StationSheet({
       </button>
       <div className="sheet-scroll" inert={!open} aria-hidden={!open}>
         <div className="sheet-body" ref={content}>
-          {children}
+          <SheetDragging.Provider value={dragging}>
+            {children}
+          </SheetDragging.Provider>
         </div>
       </div>
     </section>

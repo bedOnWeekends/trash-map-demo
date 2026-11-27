@@ -3,12 +3,23 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { day, type Snapshot } from "./model";
 let browserClient: ReturnType<typeof createClient> | undefined;
-export function useBooth(admin = false) {
+export type NoticeKind = "info" | "success" | "error";
+export function useEpochKey(epoch?: string) {
+  const [first, remember] = useState(epoch);
+  if (epoch && !first) remember(epoch);
+  return !epoch || epoch === first ? "initial" : epoch;
+}
+export function useBooth(admin = false, enabled = true) {
   const [data, setData] = useState<Snapshot | null>(null),
     [error, setError] = useState(""),
     [sync, setSync] = useState(""),
     [busy, setBusy] = useState(false),
-    [notice, setNotice] = useState("");
+    [message, setMessage] = useState({ text: "", kind: "info" as NoticeKind });
+  const { text: notice, kind: noticeKind } = message;
+  const notify = useCallback(
+    (text: string, kind: NoticeKind = "info") => setMessage({ text, kind }),
+    [],
+  );
   const active = useRef(true),
     writing = useRef(false),
     retry = useRef<{ body: string; key: string } | null>(null),
@@ -37,6 +48,7 @@ export function useBooth(admin = false) {
     }
   }, [admin]);
   useEffect(() => {
+    if (!enabled) return;
     active.current = true;
     let online = false,
       timer: ReturnType<typeof setTimeout>,
@@ -105,12 +117,12 @@ export function useBooth(admin = false) {
       window.removeEventListener("online", queue);
       window.removeEventListener("offline", offline);
     };
-  }, [refresh]);
+  }, [refresh, enabled]);
   useEffect(() => {
     if (!notice) return;
-    const t = setTimeout(() => setNotice(""), 5500);
+    const t = setTimeout(() => notify(""), 5500);
     return () => clearTimeout(t);
-  }, [notice]);
+  }, [message, notice, notify]);
   const mutate = async (
     path: string,
     payload: Record<string, unknown>,
@@ -135,12 +147,13 @@ export function useBooth(admin = false) {
         throw Error(json.error);
       }
       retry.current = null;
-      setNotice(success);
+      notify(success, "success");
       await refresh();
       return true;
     } catch (e) {
-      setNotice(
+      notify(
         e instanceof Error ? e.message : "연결을 확인한 뒤 다시 시도해 주세요.",
+        "error",
       );
       await refresh();
       return false;
@@ -155,7 +168,8 @@ export function useBooth(admin = false) {
     sync,
     busy,
     notice,
-    notify: setNotice,
+    noticeKind,
+    notify,
     refresh,
     mutate,
   };

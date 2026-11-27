@@ -1,5 +1,14 @@
 "use client";
-import { ChevronRight, Check, TriangleAlert } from "lucide-react";
+import { forwardRef, useContext } from "react";
+import {
+  AnimatePresence,
+  motion,
+  useIsPresent,
+  useReducedMotion,
+} from "motion/react";
+import { duration, tween } from "@/lib/motion";
+import { SheetDragging } from "./station-sheet";
+import { ChevronRight, Check, LoaderCircle, TriangleAlert } from "lucide-react";
 import { ItemIcon, Fill } from "./common";
 import { ConfirmDialog } from "./ui/dialog";
 import { labels, zoneName, type Bin, type Waste } from "@/lib/model";
@@ -65,25 +74,48 @@ export function StationList({
 }) {
   return (
     <div className="stations">
-      {filtered.map((b) => (
-        <button
-          className="station"
-          key={b.id}
-          onClick={() => choose(binPin(b))}
-        >
-          <span className={"station-icon kind-" + binPin(b).kind}>
-            <ItemIcon kind={binPin(b).kind} />
-          </span>
-          <span>
-            <strong>{b.name}</strong>
-            <small>{b.waste_types.map((t) => labels[t]).join(" / ")}</small>
-          </span>
-          <ChevronRight size={16} />
-        </button>
-      ))}
+      <AnimatePresence mode="popLayout" initial={false}>
+        {filtered.map((b) => (
+          <StationRow key={b.id} bin={b} choose={choose} />
+        ))}
+      </AnimatePresence>
     </div>
   );
 }
+const StationRow = forwardRef<
+  HTMLButtonElement,
+  { bin: Bin; choose: (p: Pin) => void }
+>(function StationRow({ bin: b, choose }, ref) {
+  const present = useIsPresent();
+  const drag = useContext(SheetDragging);
+  const reduce = useReducedMotion();
+  return (
+    <motion.button
+      ref={ref}
+      className="station"
+      layout={drag || reduce ? false : "position"}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{
+        ...tween(drag || reduce ? 0 : duration.micro),
+        layout: tween(duration.layout),
+      }}
+      inert={!present}
+      aria-hidden={!present || undefined}
+      onClick={() => choose(binPin(b))}
+    >
+      <span className={"station-icon kind-" + binPin(b).kind}>
+        <ItemIcon kind={binPin(b).kind} />
+      </span>
+      <span>
+        <strong>{b.name}</strong>
+        <small>{b.waste_types.map((t) => labels[t]).join(" / ")}</small>
+      </span>
+      <ChevronRight size={16} />
+    </motion.button>
+  );
+});
 export function ReportDialog({
   report,
   confirmReport,
@@ -100,6 +132,10 @@ export function ReportDialog({
       onOpenChange={(v) => {
         if (!v) confirmReport(null);
       }}
+      content={
+        booth.noticeKind === "error" &&
+        booth.notice && <p role="alert">{booth.notice}</p>
+      }
       title="수거함이 가득 찼나요?"
       description={
         report
@@ -113,13 +149,17 @@ export function ReportDialog({
         disabled={busy}
         onClick={async () => {
           if (report) {
-            await mutate("reports", report, "가득 참 신고를 접수했어요.");
-            confirmReport(null);
+            if (await mutate("reports", report, "가득 참 신고를 접수했어요."))
+              confirmReport(null);
           }
         }}
       >
-        <Check size={16} />
-        확인하고 신고
+        {busy ? (
+          <LoaderCircle size={16} className="pending-icon" />
+        ) : (
+          <Check size={16} />
+        )}
+        {busy ? "접수 중…" : "확인하고 신고"}
       </button>
     </ConfirmDialog>
   );
