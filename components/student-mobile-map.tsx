@@ -422,10 +422,10 @@ export function MobileMap({ booth }: { booth: Booth }) {
         title="건의 작성을 취소할까요?"
         description="취소하면 작성한 위치, 품목과 사유가 지워집니다."
       >
-        <button className="wide" onClick={() => askDiscard(false)}>
+        <button onClick={() => askDiscard(false)}>
           계속 작성
         </button>
-        <button className="primary wide" onClick={closeDraft}>
+        <button className="primary" onClick={closeDraft}>
           작성 취소
         </button>
       </ConfirmDialog>
