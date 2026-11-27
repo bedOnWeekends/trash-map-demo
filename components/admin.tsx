@@ -1,7 +1,14 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion, MotionConfig } from "motion/react";
+import {
+  StatusLabel,
+  useChangeHighlight,
+  useInstalledBins,
+} from "./motion/data";
+import { AnimatedNumber } from "./motion/patterns";
+import { duration, tween } from "@/lib/motion";
+import { AnimatePresence, motion } from "motion/react";
 import {
   LockKeyhole,
   ArrowRight,
@@ -128,8 +135,8 @@ function Statistics({ s }: { s: Snapshot }) {
         ].map(([label, v, unit]) => (
           <div key={label}>
             <span>{label}</span>
-            <strong key={v}>
-              {v}
+            <strong>
+              <AnimatedNumber value={Number(v)} />
               <small>{unit}</small>
             </strong>
           </div>
@@ -308,10 +315,12 @@ function ZoneReview({ rank, s, b }: { rank: Rank; s: Snapshot; b: Booth }) {
     const k = r.lat + "," + r.lng;
     groups.set(k, [...(groups.get(k) ?? []), r]);
   });
+  const fresh = useInstalledBins(s.bins, s.epoch);
   const pins: Pin[] = s.bins
     .filter((x) => x.zone_id === zone.id)
     .map((x) => ({
       ...binPin(x),
+      fresh: fresh.has(x.id),
       warning: reports.filter((r) => r.bin_id === x.id).length,
     }));
   groups.forEach((rows, k) =>
@@ -537,48 +546,97 @@ function ZoneReview({ rank, s, b }: { rank: Rank; s: Snapshot; b: Booth }) {
       {!draft && requests.length > 0 && (
         <details className="queue">
           <summary>건의 검토 및 반려 ({requests.length})</summary>
-          {requests.map((r) => (
-            <div className="queue-row" key={r.id}>
-              <div>
-                <strong>{r.reason}</strong>
-                <small>
-                  {r.requested_waste_types.map((t) => labels[t]).join(", ")} /{" "}
-                  {timeText(r.created_at)}
-                </small>
-              </div>
-              <div>
-                {r.status === "pending" && (
+          <AnimatePresence initial={false}>
+            {requests.map((r) => (
+              <motion.div
+                className="queue-row"
+                key={r.id}
+                layout="position"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <div>
+                  <strong>{r.reason}</strong>
+                  <small>
+                    {r.requested_waste_types.map((t) => labels[t]).join(", ")} /{" "}
+                    {timeText(r.created_at)}
+                  </small>
+                </div>
+                <div>
+                  {r.status === "pending" && (
+                    <button
+                      disabled={b.busy}
+                      onClick={() =>
+                        b.mutate(
+                          "admin/review",
+                          { id: r.id },
+                          "검토 중으로 변경했습니다.",
+                        )
+                      }
+                    >
+                      검토 시작
+                    </button>
+                  )}
                   <button
                     disabled={b.busy}
                     onClick={() =>
                       b.mutate(
-                        "admin/review",
+                        "admin/reject",
                         { id: r.id },
-                        "검토 중으로 변경했습니다.",
+                        "건의를 반려했습니다.",
                       )
                     }
                   >
-                    검토 시작
+                    반려
                   </button>
-                )}
-                <button
-                  disabled={b.busy}
-                  onClick={() =>
-                    b.mutate(
-                      "admin/reject",
-                      { id: r.id },
-                      "건의를 반려했습니다.",
-                    )
-                  }
-                >
-                  반려
-                </button>
-              </div>
-            </div>
-          ))}
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
         </details>
       )}
     </section>
+  );
+}
+function RankRow({
+  r,
+  position,
+  selected,
+  select,
+}: {
+  r: Rank;
+  position: number;
+  selected: boolean;
+  select: () => void;
+}) {
+  const ref = useChangeHighlight<HTMLButtonElement>(
+    [position, r.score, r.requests.length, r.reports.length].join("/"),
+  );
+  return (
+    <motion.button
+      layout="position"
+      transition={tween(duration.layout)}
+      ref={ref}
+
+      aria-pressed={selected}
+      className="rank-row"
+      onClick={select}
+    >
+      <span>
+        <small>{position}</small>
+        {r.zone.name}
+      </span>
+      <span>
+        <AnimatedNumber value={r.requests.length} />
+      </span>
+      <span>
+        <AnimatedNumber value={r.reports.length} />
+      </span>
+      <b>
+        <AnimatedNumber value={r.score} />
+      </b>
+    </motion.button>
   );
 }
 function Dashboard({ b, s }: { b: Booth; s: Snapshot }) {
@@ -587,7 +645,7 @@ function Dashboard({ b, s }: { b: Booth; s: Snapshot }) {
     rank = ranks.find((r) => r.zone.id === id)!,
     [reset, setReset] = useState(false);
   return (
-    <MotionConfig reducedMotion="user">
+    <>
       <Statistics s={s} />
       <div className="admin-grid">
         <section className="panel priority">
@@ -600,22 +658,13 @@ function Dashboard({ b, s }: { b: Booth; s: Snapshot }) {
             <span>점수</span>
           </div>
           {ranks.map((r, i) => (
-            <motion.button
-              layout="position"
-              transition={{ duration: 0.3 }}
+            <RankRow
               key={r.zone.id}
-              aria-pressed={r.zone.id === id}
-              className="rank-row"
-              onClick={() => setId(r.zone.id)}
-            >
-              <span>
-                <small>{i + 1}</small>
-                {r.zone.name}
-              </span>
-              <span>{r.requests.length}</span>
-              <span>{r.reports.length}</span>
-              <b>{r.score}</b>
-            </motion.button>
+              r={r}
+              position={i + 1}
+              selected={r.zone.id === id}
+              select={() => setId(r.zone.id)}
+            />
           ))}
           <details className="queue">
             <summary>{rank.zone.name} 품목별 집계</summary>
@@ -647,33 +696,42 @@ function Dashboard({ b, s }: { b: Booth; s: Snapshot }) {
           {!s.batches.length && (
             <p className="empty">승인된 설치안이 여기에 표시됩니다.</p>
           )}
-          {s.batches.map((x) => (
-            <div key={x.id} className="queue-row">
-              <div>
-                <strong>{x.name}</strong>
-                <small>
-                  {zoneName(x.zone_id)} /{" "}
-                  {x.waste_types.map((t) => labels[t]).join(", ")} /{" "}
-                  {x.status === "installed" ? "설치 완료" : "설치 예정"}
-                </small>
-              </div>
-              {x.status === "approved" && (
-                <button
-                  disabled={b.busy}
-                  onClick={() =>
-                    b.mutate(
-                      "admin/install",
-                      { id: x.id },
-                      "신규 거점을 설치했습니다.",
-                    )
-                  }
-                >
-                  <Check size={15} />
-                  설치 완료
-                </button>
-              )}
-            </div>
-          ))}
+          <AnimatePresence initial={false}>
+            {s.batches.map((x) => (
+              <motion.div
+                key={x.id}
+                className="queue-row"
+                layout="position"
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+              >
+                <div>
+                  <strong>{x.name}</strong>
+                  <small>
+                    {zoneName(x.zone_id)} /{" "}
+                    {x.waste_types.map((t) => labels[t]).join(", ")} /{" "}
+                    <StatusLabel status={x.status} />
+                  </small>
+                </div>
+                {x.status === "approved" && (
+                  <button
+                    disabled={b.busy}
+                    onClick={() =>
+                      b.mutate(
+                        "admin/install",
+                        { id: x.id },
+                        "신규 거점을 설치했습니다.",
+                      )
+                    }
+                  >
+                    <Check size={15} />
+                    설치 완료
+                  </button>
+                )}
+              </motion.div>
+            ))}
+          </AnimatePresence>
         </section>
       </div>
       <div className="reset-area">
@@ -705,7 +763,7 @@ function Dashboard({ b, s }: { b: Booth; s: Snapshot }) {
           전체 데이터 초기화
         </button>
       </ConfirmDialog>
-    </MotionConfig>
+    </>
   );
 }
 export default function Admin() {
@@ -751,7 +809,7 @@ export default function Admin() {
         {b.data && <Dashboard key={b.data.epoch} s={b.data} b={b} />}
         <Footer />
       </main>
-      <Notice text={b.notice} />
+      <Notice kind={b.noticeKind} text={b.notice} />
     </>
   );
 }

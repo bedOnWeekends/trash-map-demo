@@ -1,5 +1,13 @@
 "use client";
-import { ArrowLeft, ArrowRight, Check, MapPin, X } from "lucide-react";
+import { useState } from "react";
+import {
+  LoaderCircle,
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  MapPin,
+  X,
+} from "lucide-react";
 import {
   items,
   labels,
@@ -74,6 +82,12 @@ export function RequestWizard({
   notice: string;
 }) {
   const { step, point, types, reason } = draft;
+  const [previous, setPrevious] = useState(step);
+  const [direction, setDirection] = useState(1);
+  if (step !== previous) {
+    setDirection(step > previous ? 1 : -1);
+    setPrevious(step);
+  }
   const zone = point && zoneAt(point);
   const valid =
     step === 1
@@ -94,7 +108,16 @@ export function RequestWizard({
     >
       <div className="wizard-heading">
         <span className="step-count" aria-label={"3단계 중 " + step + "단계"}>
-          {step} / 3
+          {[1, 2, 3].map((n) => (
+            <span
+              className="step-segment"
+              aria-hidden
+              key={n}
+              data-active={step >= n}
+            >
+              {n < step ? <Check size={12} /> : n}
+            </span>
+          ))}
         </span>
         <h2 aria-live="polite">{titles[step - 1]}</h2>
         <button
@@ -106,7 +129,7 @@ export function RequestWizard({
           <X size={19} />
         </button>
       </div>
-      <div className="wizard-fields" key={step}>
+      <div className="wizard-fields" key={step} data-direction={direction}>
         {step === 1 && (
           <label>
             <span>
@@ -185,7 +208,13 @@ export function RequestWizard({
           )}
           <button type="submit" className="primary" disabled={!valid || busy}>
             {step === 3 ? (busy ? "접수 중…" : "건의 제출") : "다음"}
-            {step === 3 ? <Check size={16} /> : <ArrowRight size={16} />}
+            {busy ? (
+              <LoaderCircle className="pending-icon" size={16} />
+            ) : step === 3 ? (
+              <Check size={16} />
+            ) : (
+              <ArrowRight size={16} />
+            )}
           </button>
         </div>
       </div>

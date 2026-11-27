@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { ChevronRight } from "lucide-react";
-import { StudentShell, useMobileStudent } from "@/components/student-shell";
+import { useMobileStudent } from "@/components/student-shell";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import Link from "next/link";
 import { Shell, Footer, ItemIcon } from "@/components/common";
@@ -37,7 +37,7 @@ export default function Guide() {
     [item, choose] = useState<Waste | null>(null);
   if (mobile)
     return (
-      <StudentShell>
+      <>
         <main className="mobile-reading">
           <div className="reading-heading">
             <h1>분리배출 안내</h1>
@@ -69,10 +69,17 @@ export default function Guide() {
             }}
             title={item ? labels[item] : "배출 방법"}
             description={item ? tips[item][0] : ""}
-            content={item && <p>{tips[item][1]}</p>}
+            content={
+              item && (
+                <div className={"guide-detail kind-" + item}>
+                  <ItemIcon kind={item} size={24} />
+                  <p>{tips[item][1]}</p>
+                </div>
+              )
+            }
           />
         </main>
-      </StudentShell>
+      </>
     );
   return (
     <>

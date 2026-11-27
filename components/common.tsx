@@ -1,4 +1,7 @@
 "use client";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { duration, tween } from "@/lib/motion";
+import type { NoticeKind } from "@/lib/use-booth";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -47,6 +50,7 @@ export function ItemIcon({
 }
 export function StudentNav({ bottom = false }: { bottom?: boolean }) {
   const pathname = usePathname();
+  const reduced = useReducedMotion();
   return (
     <nav className={bottom ? "student-tabs" : undefined} aria-label="학생 메뉴">
       {(
@@ -61,8 +65,16 @@ export function StudentNav({ bottom = false }: { bottom?: boolean }) {
           aria-current={pathname === href ? "page" : undefined}
           href={href}
         >
+          {bottom && pathname === href && (
+            <motion.span
+              className="tab-highlight"
+              layoutId="student-tab"
+              aria-hidden
+              transition={tween(reduced ? 0 : duration.standard)}
+            />
+          )}
           <Icon size={17} />
-          {name}
+          <span>{name}</span>
         </Link>
       ))}
     </nav>
@@ -113,14 +125,32 @@ export function Sync({ text }: { text: string }) {
     </span>
   );
 }
-export function Notice({ text }: { text: string }) {
+export function Notice({
+  text,
+  kind = "info",
+}: {
+  text: string;
+  kind?: NoticeKind;
+}) {
+  const Icon =
+    kind === "success" ? Check : kind === "error" ? TriangleAlert : Info;
   return (
-    <div
-      role="status"
-      aria-live="polite"
-      className={text ? "toast" : "visually-hidden"}
-    >
-      {text && <Info size={18} />} {text}
+    <div role="status" aria-live="polite" className="notice-region">
+      <AnimatePresence initial={false}>
+        {text && (
+          <motion.div
+            key={kind + text}
+            className="toast"
+            data-kind={kind}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={tween(duration.fast)}
+          >
+            <Icon size={18} aria-hidden /> {text}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -169,7 +199,7 @@ export function ItemPicker({
           >
             <ItemIcon kind={t} size={15} />
             {labels[t]}
-            {value.includes(t) && <Check size={13} />}
+            <Check className="pick-check" size={13} aria-hidden />
           </button>
         ))}
       </div>

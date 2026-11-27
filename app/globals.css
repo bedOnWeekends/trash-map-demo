@@ -1,7 +1,7 @@
 /* Hallmark · shape: app screen · genre: modern-minimal · theme: Wayfind (deal 1/3, seed green-campus-recycling-map-2601·55f7ab85·2026-11-27·r0)
  * nav: desktop top bar, mobile bottom tabs · signature: campus plan and fixed item markers · states: loading, empty, error, full · wayfind: platform
  * axes: light/signage/blue · posture: committed · v2.0.0 */
-/* Hallmark · pre-emit critique: P4 H4 E4 S4 R4 V4 · weakest: density, moved secondary actions into a sheet. Finish review: corrected four mobile findings. Mobile polish finish-review: subagent, 1 resolved (compact landscape building labels). */
+/* Hallmark · pre-emit critique: P4 H4 E4 S4 R4 V4 · weakest: density, moved secondary actions into a sheet. Finish review: corrected four mobile findings. Mobile polish finish-review: subagent, 1 resolved (compact landscape building labels). Motion finish-review: subagent, ship after recapturing loaded maps and settled reading panels. */
 /* Hallmark · reworded "onPointerDown=" "onPointerMove=" "onPointerUp=" "onPointerCancel=" · The fallback map now tracks each pointer for simultaneous pan and pinch. */
 /* Hallmark · reworded "confirmReport({ id: current.id" · Mobile and desktop use the same item confirmation in BinDetail. */
 /* Hallmark · reworded "onClick={() => { if (skipClick.current)" · The sheet cycles measured stops and discards only pointer clicks following a drag. */
@@ -1371,7 +1371,8 @@ textarea {
 
 @media (min-width: 681px) {
   .side-content {
-    overflow: visible;
+    min-height: 0;
+    overscroll-behavior: contain;
   }
   .station {
     padding-block: var(--space-2xs);

@@ -10,6 +10,7 @@ import {
   ChevronDown,
   Navigation,
 } from "lucide-react";
+import { useInstalledBins } from "./motion/data";
 import CampusMap, { type Pin } from "./campus-map";
 import { Shell, Sync, Footer, Notice, LoadState, ItemPicker } from "./common";
 import {
@@ -19,8 +20,10 @@ import {
   binPin,
 } from "./student-stations";
 import { useMobileStudent } from "./student-shell";
-import { MobileMap } from "./student-mobile-map";
-import { useBooth } from "@/lib/use-booth";
+
+import { AnimatedNumber, ContentReveal } from "./motion/patterns";
+import { useStudentBooth } from "./student-layout";
+import { type Booth, useEpochKey } from "@/lib/use-booth";
 import {
   items,
   labels,
@@ -30,7 +33,7 @@ import {
   type Waste,
   type Point,
 } from "@/lib/model";
-function StudentScreen({ booth }: { booth: ReturnType<typeof useBooth> }) {
+function StudentScreen({ booth }: { booth: Booth }) {
   const { data, error, sync, mutate, busy, notice, notify, refresh } = booth;
   const [query, search] = useState(""),
     [filter, setFilter] = useState<Waste | null>(null),
@@ -43,6 +46,7 @@ function StudentScreen({ booth }: { booth: ReturnType<typeof useBooth> }) {
       null,
     ),
     [collapsed, collapse] = useState(false);
+  const fresh = useInstalledBins(data?.bins, data?.epoch);
   const bins = data?.bins ?? [],
     filtered = bins.filter(
       (b) =>
@@ -67,7 +71,10 @@ function StudentScreen({ booth }: { booth: ReturnType<typeof useBooth> }) {
     }
     setPoint(p);
   };
-  const pins: Pin[] = filtered.map(binPin);
+  const pins: Pin[] = filtered.map((b) => ({
+    ...binPin(b),
+    fresh: fresh.has(b.id),
+  }));
   if (requesting && point)
     pins.push({
       ...point,
@@ -247,18 +254,26 @@ function StudentScreen({ booth }: { booth: ReturnType<typeof useBooth> }) {
                     </div>
                     <div className="list-heading">
                       <h3>수거 거점</h3>
-                      <b>{data ? filtered.length : "—"}</b>
+                      <b>
+                        {data ? (
+                          <AnimatedNumber value={filtered.length} />
+                        ) : (
+                          "—"
+                        )}
+                      </b>
                     </div>
-                    {!data || error ? (
-                      <LoadState error={error} retry={refresh} />
-                    ) : null}
-                    {data && filtered.length === 0 && (
-                      <p className="empty">
-                        검색 결과가 없어요. 다른 건물명이나 품목을 선택해
-                        주세요.
-                      </p>
-                    )}
-                    <StationList filtered={filtered} choose={choose} />
+                    <ContentReveal ready={!!data} error={error} kind="stations">
+                      {error ? (
+                        <LoadState error={error} retry={refresh} />
+                      ) : null}
+                      {data && filtered.length === 0 && (
+                        <p className="empty">
+                          검색 결과가 없어요. 다른 건물명이나 품목을 선택해
+                          주세요.
+                        </p>
+                      )}
+                      <StationList filtered={filtered} choose={choose} />
+                    </ContentReveal>
                   </>
                 )}
               </div>
@@ -301,7 +316,7 @@ function StudentScreen({ booth }: { booth: ReturnType<typeof useBooth> }) {
         </div>
         <Footer />
       </main>
-      <Notice text={notice} />
+      <Notice kind={booth.noticeKind} text={notice} />
       <ReportDialog
         booth={booth}
         report={report}
@@ -310,18 +325,10 @@ function StudentScreen({ booth }: { booth: ReturnType<typeof useBooth> }) {
     </>
   );
 }
+function DesktopMap() {
+  const booth = useStudentBooth();
+  return <StudentScreen key={useEpochKey(booth.data?.epoch)} booth={booth} />;
+}
 export default function Student() {
-  const booth = useBooth();
-  const mobile = useMobileStudent();
-  const epoch = booth.data?.epoch;
-  const [firstEpoch, rememberEpoch] = useState(epoch);
-  if (epoch && !firstEpoch) rememberEpoch(epoch);
-  if (mobile)
-    return (
-      <MobileMap
-        key={!epoch || epoch === firstEpoch ? "initial" : epoch}
-        booth={booth}
-      />
-    );
-  return <StudentScreen key={booth.data?.epoch ?? "loading"} booth={booth} />;
+  return useMobileStudent() ? null : <DesktopMap />;
 }
