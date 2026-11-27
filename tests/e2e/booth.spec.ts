@@ -100,7 +100,7 @@ test("세 독립 브라우저에서 신고, 위치 지정, 설치, 실시간 및
     await a.getByRole("button", { name: "남은 음료", exact: true }).click();
     await a.getByLabel("건의 사유").fill("부스 공개 시연");
     await a.getByRole("button", { name: "건의 제출" }).click();
-    await expect(a.getByRole("status")).toContainText("접수");
+    await expect(a.getByRole("status")).toContainText("설치 건의를 접수했어요");
     expect(await rank()).toBe(score + 5);
     const proposal = {
       lat: five.lat + 0.00004,
@@ -300,7 +300,7 @@ test("학생 앱 셸과 배출 안내가 화면 크기와 방향에 맞는다", 
         if (await credit.count()) {
           const c = await credit.boundingBox(),
             sheet = await page.locator(".mobile-sheet").boundingBox();
-          expect(c!.y + c!.height).toBeLessThanOrEqual(sheet!.y + 1);
+          expect(sheet!.y + sheet!.height).toBeLessThanOrEqual(c!.y + 1);
         }
       }
       if (route === "/requests")
@@ -367,19 +367,26 @@ test("모바일 시트, 품목 신고, 작성 복원, 제출 및 실시간 갱�
       "data-snap",
       "half",
     );
+    // The two liquid stations fit on one sheet, so the next stop is peek.
     await handle.click();
-    await expect(page.locator(".mobile-workbench")).toHaveAttribute(
-      "data-snap",
+    await expect(page.locator(".station-sheet")).toHaveAttribute(
+      "data-state",
+      "peek",
+    );
+    await page.getByRole("button", { name: "전체", exact: true }).click();
+    await handle.click();
+    await expect(page.locator(".station-sheet")).toHaveAttribute(
+      "data-state",
       "expanded",
     );
-    await page.getByRole("button", { name: "시트 닫기" }).click();
-    await page.getByRole("button", { name: "전체", exact: true }).click();
     await page.getByRole("button", { name: "시트 닫기" }).click();
     // Open a station from its actual map pin. The mixed station near the center is accessible at initial zoom.
     const central =
       model.bins.find((b) => b.zone_id === "anniversary") ??
       model.bins.find((b) => b.name.includes("60주년")) ??
       bin;
+    const camera = page.locator(".basemap");
+    const viewBefore = await camera.getAttribute("viewBox");
     await page.getByRole("button", { name: central.name, exact: true }).click();
     await expect(page.locator(".item-detail")).toHaveCount(
       central.waste_types.length,
@@ -388,21 +395,7 @@ test("모바일 시트, 품목 신고, 작성 복원, 제출 및 실시간 갱�
       "data-snap",
       "half",
     );
-    const camera = page.locator(".basemap");
-    await page.locator(".sheet-handle").hover();
-    await expect
-      .poll(() =>
-        page.locator(".pin.chosen").evaluate((pin) => {
-          const marker = pin.parentElement!.getBoundingClientRect(),
-            map = pin.closest(".map-surface")!.getBoundingClientRect();
-          return (
-            Math.abs(marker.x - map.x - map.width / 2) +
-            Math.abs(marker.y - map.y - map.height / 2)
-          );
-        }),
-      )
-      .toBeLessThan(3);
-    const viewBefore = await camera.getAttribute("viewBox");
+    await expect(camera).toHaveAttribute("viewBox", viewBefore!);
     await page.screenshot({
       path: info.outputPath("station-detail.png"),
       animations: "disabled",
@@ -565,8 +558,15 @@ test("터치 지도 제스처, 직접 위치 지정, 안전 영역과 가로 시
           y: r.y + (parseFloat(label.style.top) * r.height) / 100,
         };
       });
+    const viewPicking = await svg.getAttribute("viewBox");
     await page.touchscreen.tap(point.x, point.y);
     await expect(page.getByLabel("가상 위치 선택")).toHaveValue("main");
+    await expect(svg).toHaveAttribute("viewBox", viewPicking!);
+    await page
+      .getByRole("button", { name: "5호관 남은 음료 수거함", exact: true })
+      .tap();
+    await expect(page.getByLabel("가상 위치 선택")).toHaveValue("five");
+    await expect(svg).toHaveAttribute("viewBox", viewPicking!);
     await expect(page.getByRole("button", { name: "다음" })).toBeEnabled();
     await page.screenshot({
       path: info.outputPath("map-picked.png"),
@@ -580,7 +580,7 @@ test("터치 지도 제스처, 직접 위치 지정, 안전 영역과 가로 시
     await handle.hover();
     const h = await handle.boundingBox();
     await touch("touchStart", [[h!.x + 40, h!.y + 25]]);
-    await touch("touchMove", [[h!.x - 65, h!.y + 25]]);
+    await touch("touchMove", [[h!.x + 40, h!.y - 95]]);
     await touch("touchEnd", []);
     await expect(sheet).toHaveAttribute("data-snap", "expanded");
     await page.getByRole("button", { name: "시트 닫기" }).click();

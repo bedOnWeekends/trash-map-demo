@@ -59,6 +59,7 @@ const titles = ["위치 지정", "품목 선택", "사유 입력"];
 export function RequestWizard({
   draft,
   change,
+  revealBuilding,
   cancel,
   submit,
   busy,
@@ -66,6 +67,7 @@ export function RequestWizard({
 }: {
   draft: Draft;
   change: (d: Draft) => void;
+  revealBuilding: (point: Point) => void;
   cancel: () => void;
   submit: () => void;
   busy: boolean;
@@ -116,7 +118,11 @@ export function RequestWizard({
               value={zone?.id ?? ""}
               onChange={(e) => {
                 const z = zones.find((z) => z.id === e.target.value);
-                if (z) change({ ...draft, point: { lat: z.lat, lng: z.lng } });
+                if (z) {
+                  const point = { lat: z.lat, lng: z.lng };
+                  change({ ...draft, point });
+                  revealBuilding(point);
+                }
               }}
             >
               <option value="">건물 중심으로 지정</option>

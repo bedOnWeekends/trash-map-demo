@@ -1,5 +1,12 @@
 "use client";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+  type Ref,
+  type ReactNode,
+} from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
@@ -14,6 +21,7 @@ import { zones, type Point, type Zone } from "@/lib/model";
 import buildings from "@/lib/footprints.json";
 import landscapeData from "@/lib/landscape.json";
 import { loadKakao } from "@/lib/kakao";
+import { ConfirmDialog } from "./ui/dialog";
 import { ItemIcon, type PinKind } from "./common";
 export type Pin = Point & {
   id: string;
@@ -39,11 +47,70 @@ function extent(points: readonly Point[]) {
   };
 }
 const campusExtent = extent(zones);
+const isCompactLandscape = (width: number, height: number) =>
+  width >= 480 && width > height && height < 500;
 function mapInsets(height: number, wide: boolean) {
   // Leave room for the search, the marker above its coordinate and the map toolbar.
-  const top = Math.min(wide ? 94 : 152, height * 0.38);
-  const bottom = Math.min(90, height * 0.23);
-  return { top, bottom, side: 26 };
+  const top = Math.min(wide ? 108 : 144, height * 0.38);
+  const bottom = Math.min(wide ? 76 : 162, height * 0.36);
+  return { top, bottom, side: 40 };
+}
+// In compact landscape several buildings sit closer together than their names are wide.
+// Place labels around their anchors, keeping clear of pins and previously placed names.
+function landscapeLabels(project: (p: Point) => { x: number; y: number }) {
+  const anchors = zones.map(project);
+  const occupied = anchors.map(({ x, y }) => ({
+    left: x - 19,
+    right: x + 19,
+    top: y - 38,
+    bottom: y + 2,
+  }));
+  return zones.map((zone, i) => {
+    const { x, y } = anchors[i];
+    const width = Array.from(zone.name).reduce(
+      (sum, char) => sum + (/[0-9]/.test(char) ? 8 : 12),
+      0,
+    );
+    const options = [
+      [-width / 2, 5],
+      [-width - 20, -23],
+      [20, -23],
+      [-width / 2, -58],
+      [-width, 6],
+      [0, 6],
+      [-width - 21, 6],
+      [21, 6],
+    ];
+    const boxes = options.map(([dx, dy]) => ({
+      dx,
+      dy,
+      left: x + dx,
+      right: x + dx + width,
+      top: y + dy,
+      bottom: y + dy + 18,
+    }));
+    const overlap = (box: (typeof boxes)[number]) =>
+      occupied.reduce(
+        (area, other) =>
+          area +
+          Math.max(
+            0,
+            Math.min(box.right, other.right + 2) -
+              Math.max(box.left, other.left - 2),
+          ) *
+            Math.max(
+              0,
+              Math.min(box.bottom, other.bottom + 2) -
+                Math.max(box.top, other.top - 2),
+            ),
+        0,
+      );
+    const best = boxes.reduce((best, box) =>
+      overlap(box) < overlap(best) ? box : best,
+    );
+    occupied.push(best);
+    return `translate(${best.dx}px, ${best.dy}px)`;
+  });
 }
 function fitKakao(
   map: kakao.maps.Map,
@@ -99,6 +166,32 @@ function KakaoOverlay({
   }, [map, el, pin.lat, pin.lng, pin.kind, active]);
   return createPortal(children, el);
 }
+export type MobileCamera = {
+  reveal: (point: Point, visible: DOMRect) => void;
+  zoom: (direction: number) => void;
+  reset: () => void;
+};
+export function MapControls({
+  changeZoom,
+  reset,
+}: {
+  changeZoom: (direction: number) => void;
+  reset: () => void;
+}) {
+  return (
+    <div className="map-controls">
+      <button aria-label="지도 확대" onClick={() => changeZoom(1)}>
+        <Plus />
+      </button>
+      <button aria-label="지도 축소" onClick={() => changeZoom(-1)}>
+        <Minus />
+      </button>
+      <button aria-label="지도 범위 맞추기" onClick={reset}>
+        <LocateFixed />
+      </button>
+    </div>
+  );
+}
 export default function CampusMap({
   pins,
   selected,
@@ -107,7 +200,7 @@ export default function CampusMap({
   zone,
   picking = false,
   mobile = false,
-  focusPoint,
+  cameraRef,
 }: {
   pins: Pin[];
   selected?: string;
@@ -116,21 +209,25 @@ export default function CampusMap({
   zone?: Zone;
   picking?: boolean;
   mobile?: boolean;
-  focusPoint?: Point;
+  cameraRef?: Ref<MobileCamera>;
 }) {
   const host = useRef<HTMLDivElement>(null),
     surface = useRef<HTMLDivElement>(null);
   const [map, setMap] = useState<kakao.maps.Map | null>(null),
     [failure, setFailure] = useState(""),
     [attempt, setAttempt] = useState(0),
+    [showFailure, setShowFailure] = useState(false),
     [size, setSize] = useState({ w: 800, h: 550 }),
     [scale, zoom] = useState(1),
     [pan, move] = useState({ x: 0, y: 0 });
-  const [overview, setOverview] = useState<typeof campusExtent | null>(null);
-  if (mobile && !overview && pins.length) setOverview(extent(pins));
-  const box = overview ?? campusExtent;
-  const [anchor, setAnchor] = useState<Point | null>(null);
-  const wide = size.w > 680;
+  const box = campusExtent;
+  const tween = useRef(0);
+  const home = useRef<{ center: kakao.maps.LatLng; level: number } | null>(
+    null,
+  );
+  const stopPan = () => cancelAnimationFrame(tween.current);
+  useEffect(() => () => cancelAnimationFrame(tween.current), []);
+  const wide = isCompactLandscape(size.w, size.h);
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const moved = useRef(false);
   const start = useRef({ x: 0, y: 0 });
@@ -150,11 +247,27 @@ export default function CampusMap({
           center: new kakao.maps.LatLng(center.lat, center.lng),
           level: 4,
         });
+        if (mobile)
+          m.setCopyrightPosition(
+            kakao.maps.CopyrightPosition.BOTTOMRIGHT,
+            false,
+          );
         const onClick = (e: kakao.maps.event.MouseEvent) =>
           pickRef.current?.({ lat: e.latLng.getLat(), lng: e.latLng.getLng() });
         kakao.maps.event.addListener(m, "click", onClick);
         release = () => kakao.maps.event.removeListener(m, "click", onClick);
-        observer = new ResizeObserver(() => {
+        let width = host.current.clientWidth,
+          height = host.current.clientHeight;
+        observer = new ResizeObserver(([entry]) => {
+          const size = entry.contentRect;
+          if (
+            !size.width ||
+            !size.height ||
+            (size.width === width && size.height === height)
+          )
+            return;
+          width = size.width;
+          height = size.height;
           const position = m.getCenter();
           m.relayout();
           if (mobile) m.setCenter(position);
@@ -205,35 +318,25 @@ export default function CampusMap({
     return () => layers.forEach((p) => p.setMap(null));
   }, [map, zone, mobile]);
   useEffect(() => {
-    if (map && mobile && surface.current)
+    if (map && mobile && surface.current) {
       fitKakao(
         map,
         box,
         surface.current.clientHeight,
-        surface.current.clientWidth > 680,
+        isCompactLandscape(
+          surface.current.clientWidth,
+          surface.current.clientHeight,
+        ),
       );
-  }, [map, mobile, box]);
-  const focusLat = focusPoint?.lat,
-    focusLng = focusPoint?.lng;
-  const focusKey = focusPoint ? focusLat + "," + focusLng : "";
-  const [lastFocus, setLastFocus] = useState("");
-  if (focusKey !== lastFocus) {
-    setLastFocus(focusKey);
-    if (focusPoint) {
-      setAnchor({ lat: focusPoint.lat, lng: focusPoint.lng });
-      move({ x: 0, y: 0 });
+      home.current = { center: map.getCenter(), level: map.getLevel() };
     }
-  }
-  useEffect(() => {
-    if (focusLat === undefined || focusLng === undefined) return;
-    map?.setCenter(new kakao.maps.LatLng(focusLat, focusLng));
-  }, [focusLat, focusLng, map]);
+  }, [map, mobile, box]);
   // The schematic uses the same geographic coordinates and click inverse as the live map.
   const insets = mapInsets(size.h, wide);
   const overviewCenter = mobile
     ? { lng: (box.west + box.east) / 2, lat: (box.north + box.south) / 2 }
     : center;
-  const target = zone ?? anchor ?? overviewCenter;
+  const target = zone ?? overviewCenter;
   const [targetX, targetY] = xy(target.lng, target.lat);
   const fittedScale = Math.min(
     1.2,
@@ -244,15 +347,11 @@ export default function CampusMap({
   const factor =
     Math.max(
       0.05,
-      mobile
-        ? anchor
-          ? Math.max(fittedScale, Math.min(1, size.w / 550))
-          : fittedScale
-        : Math.min(size.w / 870, size.h / 670),
+      mobile ? fittedScale : Math.min(size.w / 870, size.h / 670),
     ) *
     scale *
     (zone ? 1.6 : 1);
-  const offsetY = mobile && !anchor ? (insets.top - insets.bottom) / 2 : 0;
+  const offsetY = mobile ? (insets.top - insets.bottom) / 2 : 0;
   const width = size.w / factor,
     height = size.h / factor;
   const ox = targetX - width / 2 - pan.x / factor,
@@ -264,16 +363,42 @@ export default function CampusMap({
       top: ((y - oy) / height) * 100 + "%",
     };
   };
-  const reset = () => {
-    setAnchor(null);
-    const nextBox = pins.length ? extent(pins) : campusExtent;
-    if (mobile) setOverview(nextBox);
-    move({ x: 0, y: 0 });
-    zoom(1);
-    if (map && mobile) {
-      fitKakao(map, nextBox, size.h, wide);
+  const labelOffsets =
+    mobile && wide && !map
+      ? landscapeLabels((p) => {
+          const [x, y] = xy(p.lng, p.lat);
+          return { x: (x - ox) * factor, y: (y - oy) * factor };
+        })
+      : undefined;
+  function animateCamera(x: number, y: number, nextScale = scale) {
+    stopPan();
+    if (reduced) {
+      move({ x, y });
+      zoom(nextScale);
       return;
     }
+    const start = performance.now();
+    function frame(time: number) {
+      const t = Math.min(1, (time - start) / 320),
+        ease = 1 - (1 - t) ** 3;
+      move({ x: pan.x + (x - pan.x) * ease, y: pan.y + (y - pan.y) * ease });
+      zoom(scale + (nextScale - scale) * ease);
+      if (t < 1) tween.current = requestAnimationFrame(frame);
+    }
+    tween.current = requestAnimationFrame(frame);
+  }
+  const reset = () => {
+    if (mobile) {
+      if (map && home.current) {
+        if (map.getLevel() !== home.current.level)
+          map.setLevel(home.current.level);
+        if (reduced) map.setCenter(home.current.center);
+        else map.panTo(home.current.center);
+      } else animateCamera(0, 0, 1);
+      return;
+    }
+    move({ x: 0, y: 0 });
+    zoom(1);
     if (map) {
       const bounds = new kakao.maps.LatLngBounds();
       (zone ? zone.polygon : zones.flatMap((z) => z.polygon)).forEach(
@@ -282,10 +407,44 @@ export default function CampusMap({
       map.setBounds(bounds, 50, 36, 45, 36);
     }
   };
-  const changeZoom = (v: number) =>
-    map
-      ? map.setLevel(Math.max(1, Math.min(8, map.getLevel() - v)))
-      : zoom((old) => Math.max(0.65, Math.min(4, old * 1.32 ** v)));
+  const changeZoom = (v: number) => {
+    stopPan();
+    if (map) map.setLevel(Math.max(1, Math.min(8, map.getLevel() - v)));
+    else zoom((old) => Math.max(0.65, Math.min(4, old * 1.32 ** v)));
+  };
+  useImperativeHandle(cameraRef, () => ({
+    zoom: changeZoom,
+    reset,
+    reveal(point, visible) {
+      if (!surface.current) return;
+      const r = surface.current.getBoundingClientRect();
+      const coord = map && new kakao.maps.LatLng(point.lat, point.lng);
+      const projection = map?.getProjection();
+      const [gx, gy] = xy(point.lng, point.lat);
+      const screen =
+        coord && projection
+          ? projection.containerPointFromCoords(coord)
+          : { x: (gx - ox) * factor, y: (gy - oy) * factor };
+      const x = visible.x - r.x,
+        y = visible.y - r.y;
+      if (
+        screen.x > x + 24 &&
+        screen.x < x + visible.width - 24 &&
+        screen.y > y + 42 &&
+        screen.y < y + visible.height - 12
+      )
+        return;
+      const dx = x + visible.width / 2 - screen.x,
+        dy = y + visible.height / 2 - screen.y;
+      if (map && projection) {
+        const goal = projection.coordsFromContainerPoint(
+          new kakao.maps.Point(r.width / 2 - dx, r.height / 2 - dy),
+        );
+        if (reduced) map.setCenter(goal);
+        else map.panTo(goal);
+      } else animateCamera(pan.x + dx, pan.y + dy);
+    },
+  }));
   const pinButton = (p: Pin) => (
     <button
       type="button"
@@ -323,6 +482,7 @@ export default function CampusMap({
         <div
           className="schematic"
           onPointerDown={(e) => {
+            stopPan();
             if ((e.target as Element).closest("button,a")) return;
             if (!pointers.current.size) {
               moved.current = false;
@@ -420,15 +580,23 @@ export default function CampusMap({
               <path key={i} className="building" d={d + "Z"} />
             ))}
           </svg>
-          {(zone ? [zone] : zones).map((z) => (
-            <span className="map-label" key={z.id} style={position(z)}>
+          {(zone ? [zone] : zones).map((z, i) => (
+            <span
+              className="map-label"
+              key={z.id}
+              style={{ ...position(z), transform: labelOffsets?.[i] }}
+            >
               {z.name}
             </span>
           ))}
           <AnimatePresence>
             {pins.map((p) => (
               <motion.div
-                key={p.id}
+                key={
+                  p.kind === "candidate"
+                    ? p.id + ":" + p.lat + ":" + p.lng
+                    : p.id
+                }
                 className="pin-anchor"
                 style={position(p)}
                 initial={{ opacity: 0, scale: 0.7 }}
@@ -452,6 +620,7 @@ export default function CampusMap({
               active={p.id === selected}
             >
               <motion.div
+                key={p.kind === "candidate" ? p.lat + ":" + p.lng : p.id}
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.85 }}
@@ -470,17 +639,7 @@ export default function CampusMap({
       <div className="north" title="북쪽">
         <Compass size={19} />N
       </div>
-      <div className="map-controls">
-        <button aria-label="지도 확대" onClick={() => changeZoom(1)}>
-          <Plus />
-        </button>
-        <button aria-label="지도 축소" onClick={() => changeZoom(-1)}>
-          <Minus />
-        </button>
-        <button aria-label="지도 범위 맞추기" onClick={reset}>
-          <LocateFixed />
-        </button>
-      </div>
+      {!mobile && <MapControls changeZoom={changeZoom} reset={reset} />}
       {!map && (
         <div className="map-credit">
           <a
@@ -492,7 +651,34 @@ export default function CampusMap({
           </a>
         </div>
       )}
-      {failure && (
+      {mobile && failure && (
+        <>
+          <button
+            className="map-error map-error-trigger"
+            onClick={() => setShowFailure(true)}
+          >
+            가상 배치도 안내
+          </button>
+          <ConfirmDialog
+            open={showFailure}
+            onOpenChange={setShowFailure}
+            title="가상 배치도 안내"
+            description={failure}
+            sheet
+          >
+            <button
+              className="wide"
+              onClick={() => {
+                setShowFailure(false);
+                setAttempt((n) => n + 1);
+              }}
+            >
+              다시 연결
+            </button>
+          </ConfirmDialog>
+        </>
+      )}
+      {!mobile && failure && (
         <details className="map-error">
           <summary>가상 배치도 안내</summary>
           <div>

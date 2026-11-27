@@ -30,13 +30,24 @@ export function StudentShell({
     if (!el || !viewport) return;
     const resize = () => {
       if (viewport.scale !== 1) return;
+      const editing = document.activeElement?.matches(
+        'input[type="search"], textarea',
+      );
+      el.toggleAttribute(
+        "data-keyboard",
+        !!editing && window.innerHeight - viewport.height > 100,
+      );
       el.style.setProperty("--visible-height", viewport.height + "px");
       el.style.setProperty("--visible-top", viewport.offsetTop + "px");
     };
     resize();
+    el.addEventListener("focusin", resize);
+    el.addEventListener("focusout", resize);
     viewport.addEventListener("resize", resize);
     viewport.addEventListener("scroll", resize);
     return () => {
+      el.removeEventListener("focusin", resize);
+      el.removeEventListener("focusout", resize);
       viewport.removeEventListener("resize", resize);
       viewport.removeEventListener("scroll", resize);
     };
