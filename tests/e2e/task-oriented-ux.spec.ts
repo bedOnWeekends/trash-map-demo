@@ -29,6 +29,15 @@ test("좁은 가로 화면에서 검색하고 품목 조건만 해제한다", as
   await expect(
     page.locator(".station-slot:not([inert])").first(),
   ).toContainText("5호관");
+  // The live 5호관 may also have a mixed station accepting glass. Exercise
+  // empty-result recovery on the actual name of a liquid-only station.
+  const current: Snapshot = await (
+    await page.request.get(url("/api/snapshot"))
+  ).json();
+  const liquidOnly = current.bins.find(
+    (b) => b.waste_types.length === 1 && b.waste_types[0] === "liquid",
+  )!;
+  await input.fill(liquidOnly.name);
   await trigger.tap();
   await page
     .getByRole("dialog")
@@ -38,7 +47,7 @@ test("좁은 가로 화면에서 검색하고 품목 조건만 해제한다", as
   expect((await input.boundingBox())!.width).toBeGreaterThanOrEqual(65);
   const empty = page.locator(".empty-reveal");
   await empty.getByRole("button", { name: "품목 필터만 해제" }).tap();
-  await expect(input).toHaveValue("  음료  5호관 ");
+  await expect(input).toHaveValue(liquidOnly.name);
   await trigger.tap();
   await page
     .getByRole("dialog")
