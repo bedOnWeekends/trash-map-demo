@@ -332,7 +332,8 @@ footer span,
   color: var(--color-accent);
 }
 .filter button[aria-pressed="true"] {
-  background: var(--color-accent);
+  --press-fill: var(--color-accent);
+  --press-rule: var(--color-accent);
   color: var(--color-accent-ink);
 }
 .dot,

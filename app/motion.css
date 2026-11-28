@@ -511,7 +511,7 @@ button.filter-trigger .press-face { border: 0; border-inline-start: 1px solid va
 .map-search-field .press-button { --press-padding: 0; --press-fill: transparent; }
 .chips .press-button { --press-padding: var(--space-2xs) var(--space-sm); }
 .wizard-fields .chips .press-button { --press-padding: var(--space-xs); }
-.press-button[aria-pressed="true"] { --press-fill: var(--subtle); --press-rule: var(--color-accent); }
+:where(.press-button)[aria-pressed="true"] { --press-fill: var(--subtle); --press-rule: var(--color-accent); }
 @media (hover: hover) {
   .press-button:not(.primary,.danger,[aria-pressed="true"]):enabled:hover { --press-fill: var(--subtle); }
 }
