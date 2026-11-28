@@ -77,12 +77,18 @@ export function StationList({
   const previous = useRef(new Map<string, number>());
   const drag = useContext(SheetDragging);
   const reduce = useReducedMotion();
-  const order = filtered.map(b => b.id).join(",");
+  const order = filtered.map((b) => b.id).join(",");
   useLayoutEffect(() => {
     // offsetTop uses list-local layout coordinates. Sheet movement and scroll
     // never enter the projection. Read the final slots before writing motion.
-    const slots = [...list.current!.querySelectorAll<HTMLElement>(":scope > [data-bin-id]:not([inert])")];
-    const positions = new Map(slots.map(el => [el.dataset.binId!, el.offsetTop]));
+    const slots = [
+      ...list.current!.querySelectorAll<HTMLElement>(
+        ":scope > [data-bin-id]:not([inert])",
+      ),
+    ];
+    const positions = new Map(
+      slots.map((el) => [el.dataset.binId!, el.offsetTop]),
+    );
     const animations: Animation[] = [];
     if (!drag && !reduce) {
       for (const el of slots) {
@@ -91,20 +97,34 @@ export function StationList({
         const to = positions.get(id)!;
         if (from === undefined || from === to) continue;
         // Keep long moves inside their own opaque slot so labels cannot cross.
-        const dy = Math.max(-distance.reveal, Math.min(distance.reveal, from - to));
-        animations.push(el.firstElementChild!.animate(
-          [{ translate: `0 ${dy}px` }, { translate: "0 0" }],
-          { duration: duration.fast * 1000, easing: `cubic-bezier(${ease.enter.join(",")})` },
-        ));
+        const dy = Math.max(
+          -distance.reveal,
+          Math.min(distance.reveal, from - to),
+        );
+        animations.push(
+          el.firstElementChild!.animate(
+            [{ translate: `0 ${dy}px` }, { translate: "0 0" }],
+            {
+              duration: duration.fast * 1000,
+              easing: `cubic-bezier(${ease.enter.join(",")})`,
+            },
+          ),
+        );
       }
     }
     previous.current = positions;
-    return () => animations.forEach(a => a.cancel());
+    return () => animations.forEach((a) => a.cancel());
   }, [order, drag, reduce]);
   return (
-    <div className="stations" ref={list} data-empty={!filtered.length || undefined}>
+    <div
+      className="stations"
+      ref={list}
+      data-empty={!filtered.length || undefined}
+    >
       <AnimatePresence mode="popLayout" initial={false}>
-        {filtered.map((b) => <StationRow key={b.id} bin={b} choose={choose} />)}
+        {filtered.map((b) => (
+          <StationRow key={b.id} bin={b} choose={choose} />
+        ))}
       </AnimatePresence>
     </div>
   );
@@ -117,25 +137,30 @@ const StationRow = forwardRef<
   const drag = useContext(SheetDragging);
   const reduce = useReducedMotion();
   return (
-    <div ref={ref} className="station-slot" data-bin-id={b.id}
-      inert={!present} aria-hidden={!present || undefined}>
-    <motion.button
-      className="station"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={tween(drag || reduce ? 0 : duration.micro)}
-      onClick={() => choose(binPin(b))}
+    <div
+      ref={ref}
+      className="station-slot"
+      data-bin-id={b.id}
+      inert={!present}
+      aria-hidden={!present || undefined}
     >
-      <span className={"station-icon kind-" + binPin(b).kind}>
-        <ItemIcon kind={binPin(b).kind} />
-      </span>
-      <span>
-        <strong>{b.name}</strong>
-        <small>{b.waste_types.map((t) => labels[t]).join(" / ")}</small>
-      </span>
-      <ChevronRight size={16} />
-    </motion.button>
+      <motion.button
+        className="station"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={tween(drag || reduce ? 0 : duration.micro)}
+        onClick={() => choose(binPin(b))}
+      >
+        <span className={"station-icon kind-" + binPin(b).kind}>
+          <ItemIcon kind={binPin(b).kind} />
+        </span>
+        <span>
+          <strong>{b.name}</strong>
+          <small>{b.waste_types.map((t) => labels[t]).join(" / ")}</small>
+        </span>
+        <ChevronRight size={16} />
+      </motion.button>
     </div>
   );
 });

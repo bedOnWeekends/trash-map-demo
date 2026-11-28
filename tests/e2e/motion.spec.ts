@@ -118,6 +118,20 @@ test("최초 로딩, 실시간 상태 전환, 재시도와 열린 건의 보존"
   });
   await page.goto("/requests");
   await expect(page.locator(".skeleton.requests")).toBeVisible();
+  const block = page.locator(".skeleton-row i").first();
+  expect(
+    await block.evaluate(
+      (el) => getComputedStyle(el, "::after").animationPlayState,
+    ),
+  ).toBe("running");
+  const transform = await block.evaluate(
+    (el) => getComputedStyle(el, "::after").transform,
+  );
+  await expect
+    .poll(() =>
+      block.evaluate((el) => getComputedStyle(el, "::after").transform),
+    )
+    .not.toBe(transform);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await expect
     .poll(() =>
@@ -293,4 +307,35 @@ test("데스크톱의 모든 거점 행과 설치 건의 버튼을 스크롤하�
   expect(await proposal.boundingBox()).toEqual(before);
   await proposal.click();
   await expect(page.getByLabel("가상 위치 선택")).toBeVisible();
+});
+
+test("스켈레톤은 열린 지도 시트에서만 움직이고 탭 복귀 후 다시 진행한다", async ({
+  page,
+}) => {
+  const snapshot = await (await page.request.get("/api/snapshot")).json();
+  let release!: () => void;
+  const pending = new Promise<void>((r) => {
+    release = r;
+  });
+  await page.route("**/api/snapshot", async (route) => {
+    await pending;
+    await route.fulfill({ json: snapshot });
+  });
+  try {
+    await page.goto("/");
+    const tile = page.locator(".stations-placeholder .skeleton-row i").first();
+    const state = () =>
+      tile.evaluate((el) => getComputedStyle(el, "::after").animationPlayState);
+    await expect.poll(state).toBe("paused");
+    await page.getByRole("button", { name: "목록 펼치기" }).tap();
+    await expect.poll(state).toBe("running");
+    await tab(page, "/guide").tap();
+    await expect.poll(state).toBe("paused");
+    await tab(page, "/").tap();
+    await expect.poll(state).toBe("running");
+  } finally {
+    release();
+  }
+  await expect(page.locator(".stations-placeholder")).toHaveCount(0);
+  await expect(page.locator(".station").first()).toBeVisible();
 });

@@ -16,11 +16,7 @@ export function useMobileStudent() {
     () => false,
   );
 }
-export function StudentShell({
-  children,
-}: {
-  children: ReactNode;
-}) {
+export function StudentShell({ children }: { children: ReactNode }) {
   const shell = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const viewport = window.visualViewport;

@@ -69,7 +69,10 @@ export function StationSheet({
       }
       setStops((old) =>
         old.length === choices.length &&
-        old.every((s, i) => s.height === choices[i].height && s.snap === choices[i].snap)
+        old.every(
+          (s, i) =>
+            s.height === choices[i].height && s.snap === choices[i].snap,
+        )
           ? old
           : choices,
       );

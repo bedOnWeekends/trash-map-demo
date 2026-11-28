@@ -207,7 +207,11 @@ export function RequestWizard({
               이전
             </PressButton>
           )}
-          <PressButton type="submit" className="primary" disabled={!valid || busy}>
+          <PressButton
+            type="submit"
+            className="primary"
+            disabled={!valid || busy}
+          >
             {step === 3 ? (busy ? "접수 중…" : "건의 제출") : "다음"}
             {busy ? (
               <LoaderCircle className="pending-icon" size={16} />

@@ -107,7 +107,6 @@ function StudentScreen({ booth }: { booth: Booth }) {
             </div>
             <h1>분리수거 지도</h1>
           </div>
-
         </div>
         <div className="map-workbench">
           <section

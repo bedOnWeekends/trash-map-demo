@@ -139,7 +139,6 @@
 }
 .wizard-fields .chips button {
   gap: var(--space-2xs);
-  padding-inline: var(--space-xs);
 }
 .wizard-fields .chips .pick-check {
   margin-left: auto;
@@ -429,7 +428,14 @@
   content: attr(data-value);
 }
 
-/* Browser snapshots crossfade the body. The live map and navigation stay mounted. */
+/* Only the old bitmap fades above the already interactive destination. */
+@media (prefers-reduced-motion: no-preference) {
+  .student-map-view[data-capture-departure]:not([inert]) {
+    view-transition-name: student-outgoing-map;
+    view-transition-class: tab-crossfade;
+  }
+}
+:root:has(.student-viewport) { view-transition-name: none; }
 ::view-transition-group(.tab-crossfade),
 ::view-transition-old(.tab-crossfade),
 ::view-transition-new(.tab-crossfade) {
@@ -437,7 +443,7 @@
   animation-timing-function: var(--motion-standard);
   pointer-events: none;
 }
-::view-transition { pointer-events: none; }
+:root:has(.student-viewport)::view-transition { pointer-events: none; }
 
 .station-slot {
   position: relative;
@@ -528,3 +534,5 @@ button.filter-trigger .press-face { border: 0; border-inline-start: 1px solid va
   .press-face, .quick-filters .chip-pill, .distribution i { transition: none; }
   .request-empty > * { animation: none; }
 }
+
+.mobile-reading { animation: veil-in var(--dur-fast) var(--motion-enter); }

@@ -230,13 +230,17 @@ test("모바일 배치도, 키보드, 줄어든 모션 및 폴링 폴백", async
     ws.close({ code: 1000, reason: "poll test" }),
   );
   let reads = 0;
-  page.on("response", (r) => { if (new URL(r.url()).pathname === "/api/snapshot" && r.ok()) reads++; });
+  page.on("response", (r) => {
+    if (new URL(r.url()).pathname === "/api/snapshot" && r.ok()) reads++;
+  });
   await page.goto(base);
   await page.getByRole("button", { name: "목록 펼치기" }).click();
   await expect(page.locator(".station")).toHaveCount(8);
   const initial = reads;
   await expect.poll(() => reads, { timeout: 15000 }).toBeGreaterThan(initial);
-  await expect(page.getByText(/주기적 동기화|오프라인|재연결 중/)).toHaveCount(0);
+  await expect(page.getByText(/주기적 동기화|오프라인|재연결 중/)).toHaveCount(
+    0,
+  );
   for (const route of ["/", "/requests", "/guide", "/admin"]) {
     await page.goto(base + route);
     expect(

@@ -98,16 +98,33 @@ function Placeholder({ kind }: { kind: "stations" | "requests" }) {
     return () => clearTimeout(t);
   }, [present]);
   return (
-    <div className={"data-placeholder placeholder-" + kind} aria-busy="true" aria-label="불러오는 중">
-      {shown && (kind === "stations" ? (
-        <div className="skeleton stations-placeholder" aria-hidden>
-          {[0, 1, 2].map(i => <div className="skeleton-row" key={i}><i/><span/><span/></div>)}
-        </div>
-      ) : (
-        <div className="skeleton requests" aria-hidden>
-          {[0, 1].map(i => <div key={i} className="skeleton-row request-placeholder"><i/><span/><span/></div>)}
-        </div>
-      ))}
+    <div
+      className={"data-placeholder placeholder-" + kind}
+      aria-busy="true"
+      aria-label="불러오는 중"
+    >
+      {shown &&
+        (kind === "stations" ? (
+          <div className="skeleton stations-placeholder" aria-hidden>
+            {[0, 1, 2].map((i) => (
+              <div className="skeleton-row" key={i}>
+                <i />
+                <span />
+                <span />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="skeleton requests" aria-hidden>
+            {[0, 1].map((i) => (
+              <div key={i} className="skeleton-row request-placeholder">
+                <i />
+                <span />
+                <span />
+              </div>
+            ))}
+          </div>
+        ))}
     </div>
   );
 }
@@ -122,12 +139,13 @@ export function ContentReveal({
   kind: "stations" | "requests";
   children: ReactNode;
 }) {
+  const reduced = useReducedMotion();
   const phase = ready ? "content" : error ? "error" : "loading";
   return (
     <Swap
       identity={phase}
       variants={{
-        enter: { opacity: 0, y: distance.reveal },
+        enter: { opacity: 0, y: reduced ? 0 : distance.reveal },
         visible: { opacity: 1, y: 0 },
         leave: { opacity: 0 },
       }}

@@ -1,11 +1,12 @@
 "use client";
+import { ViewTransition } from "react";
 import { useMobileStudent } from "@/components/student-shell";
 import { useStudentBooth } from "@/components/student-layout";
 import type { Booth } from "@/lib/use-booth";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ContentReveal } from "@/components/motion/patterns";
 import { StatusLabel, useChangeHighlight } from "@/components/motion/data";
-import { duration, tween } from "@/lib/motion";
+import { duration, distance, tween } from "@/lib/motion";
 import type { RequestRow } from "@/lib/model";
 import Link from "next/link";
 import { ClipboardList, ArrowRight, ChevronDown } from "lucide-react";
@@ -21,7 +22,7 @@ export default function Requests() {
 }
 function MobileRequests({ b }: { b: Booth }) {
   return (
-    <>
+    <ViewTransition default="none" exit="tab-crossfade">
       <main className="mobile-reading">
         <div className="reading-heading">
           <h1>내 설치 건의</h1>
@@ -41,14 +42,14 @@ function MobileRequests({ b }: { b: Booth }) {
               </div>
             )}
             <AnimatePresence initial={false}>
-              {b.data?.requests.map((r) => (
-                <RequestEntry key={r.id} r={r} />
+              {b.data?.requests.map((r, index) => (
+                <RequestEntry key={r.id} r={r} index={index} />
               ))}
             </AnimatePresence>
           </ContentReveal>
         </div>
       </main>
-    </>
+    </ViewTransition>
   );
 }
 function DesktopRequests({ b }: { b: Booth }) {
@@ -58,7 +59,6 @@ function DesktopRequests({ b }: { b: Booth }) {
       <main className="reading">
         <div className="page-heading">
           <h1>내 설치 건의</h1>
-
         </div>
         <p className="intro">
           이 브라우저에서 접수한 건의와 처리 상태를 확인하세요.
@@ -93,15 +93,23 @@ function DesktopRequests({ b }: { b: Booth }) {
   );
 }
 
-function RequestEntry({ r }: { r: RequestRow }) {
+function RequestEntry({ r, index }: { r: RequestRow; index: number }) {
+  const reduced = useReducedMotion();
   const ref = useChangeHighlight<HTMLDetailsElement>(r.status);
   return (
     <motion.details
       ref={ref}
       className="request-entry"
       layout="position"
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0, y: reduced ? 0 : distance.reveal }}
+      animate={{
+        opacity: 1,
+        y: 0,
+        transition: {
+          ...tween(reduced ? 0 : duration.fast),
+          delay: reduced ? 0 : Math.min(index, 3) * 0.035,
+        },
+      }}
       transition={tween(duration.fast)}
     >
       <summary>

@@ -116,7 +116,7 @@ export function MobileMap({
     setFilter(next);
     select("");
     openFilter(false);
-    setSnap((value) => value === "peek" ? "half" : value);
+    setSnap((value) => (value === "peek" ? "half" : value));
   };
   const choose = (pin: Pin) => {
     if (draft) {
@@ -247,7 +247,7 @@ export function MobileMap({
                     onChange={(e) => {
                       search(e.target.value);
                       select("");
-                      setSnap((value) => value === "peek" ? "half" : value);
+                      setSnap((value) => (value === "peek" ? "half" : value));
                     }}
                   />
                   {
@@ -267,6 +267,9 @@ export function MobileMap({
                   }
                   <PressButton
                     ref={filterTrigger}
+                    aria-controls={
+                      filterOpen ? "student-filter-options" : undefined
+                    }
                     aria-expanded={filterOpen}
                     className="filter-trigger"
                     aria-label="전체 품목 필터"
@@ -438,8 +441,9 @@ export function MobileMap({
             inert={!active || !filterOpen}
             onCloseAutoFocus={(event) => {
               event.preventDefault();
-              if (active) filterTrigger.current?.focus({preventScroll:true});
+              if (active) filterTrigger.current?.focus({ preventScroll: true });
             }}
+            id="student-filter-options"
             className="mobile-dialog filter-dialog"
             aria-describedby={undefined}
           >
@@ -465,7 +469,7 @@ export function MobileMap({
               onClick={() => {
                 reset();
                 openFilter(false);
-                setSnap((value) => value === "peek" ? "half" : value);
+                setSnap((value) => (value === "peek" ? "half" : value));
               }}
             >
               검색·필터 초기화
