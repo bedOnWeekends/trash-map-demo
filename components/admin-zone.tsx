@@ -161,6 +161,14 @@ export function ZoneReview({
                       : bin.fills[item] + "%"}{" "}
                     · 미반영 신고 {hist.length}건
                   </small>
+                  {hist.length > 1 && (
+                    <details>
+                      <summary>신고 내역 {hist.length}건</summary>
+                      {hist.map((r) => (
+                        <small key={r.id}>{timeText(r.created_at)}</small>
+                      ))}
+                    </details>
+                  )}
                   {hist[0] && (
                     <small>최근 신고 {timeText(hist[0].created_at)}</small>
                   )}

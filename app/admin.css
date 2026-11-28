@@ -363,3 +363,10 @@
     color: var(--color-accent);
   }
 }
+.review .pin-anchor:has(.kind-candidate) {
+  pointer-events: none;
+  z-index: 0;
+}
+.review .pin-anchor:has(.pin:not(.kind-candidate)) {
+  z-index: 1;
+}

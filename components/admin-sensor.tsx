@@ -24,24 +24,38 @@ export function Sensor({
   const key = bin?.id + "/" + item;
   const edit = edits[key] ?? {};
   const committed = item ? (bin?.fills[item] ?? null) : null;
+  if (edit.accepted != null && committed === edit.accepted) {
+    setEdits((prev) => ({
+      ...prev,
+      [key]: { result: committed + "% 적용됨" },
+    }));
+  }
   const change = (value: number) =>
     setEdits((prev) => ({ ...prev, [key]: { value } }));
-  const verified = (state: Snapshot | null, submitted: number) => {
+  const verified = (
+    state: Snapshot | null,
+    submitted: number,
+    recheck = false,
+  ) => {
     const confirmed =
       !!bin &&
       !!item &&
       state?.epoch === s.epoch &&
       state.bins.find((x) => x.id === bin.id)?.fills[item] === submitted;
-    setEdits((prev) => ({
-      ...prev,
-      [key]: confirmed
-        ? { result: submitted + "% 적용됨" }
+    setEdits((prev) =>
+      recheck && prev[key]?.accepted !== submitted
+        ? prev
         : {
-            value: submitted,
-            accepted: submitted,
-            result: "저장 요청 수락 · 최신 측정값 확인 필요",
+            ...prev,
+            [key]: confirmed
+              ? { result: submitted + "% 적용됨" }
+              : {
+                  value: submitted,
+                  accepted: submitted,
+                  result: "저장 요청 수락 · 최신 측정값 확인 필요",
+                },
           },
-    }));
+    );
   };
   return (
     <section className="panel" id="sensor">
@@ -175,7 +189,7 @@ export function Sensor({
                 <PressButton
                   type="button"
                   onClick={async () =>
-                    verified(await b.refresh(), edit.accepted!)
+                    verified(await b.refresh(), edit.accepted!, true)
                   }
                 >
                   측정값 다시 확인

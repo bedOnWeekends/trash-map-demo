@@ -73,6 +73,13 @@ test("세 독립 브라우저에서 신고, 위치 지정, 설치, 실시간 및
     const rank = async () =>
       rankings(await snap(c, true)).find((x) => x.zone.id === "five")!.score;
     const score = await rank();
+    await c.locator('[data-zone-id="main"]').click();
+    const adminMap = await c
+      .locator("#management .map-surface")
+      .elementHandle();
+    const adminCamera = await c
+      .locator("#management .basemap")
+      .getAttribute("viewBox");
     await a.getByRole("button", { name: "남은 음료", exact: true }).click();
     await a.locator(".station").filter({ hasText: mixed.name }).click();
     await expect(a.locator(".item-detail")).toHaveCount(
@@ -114,6 +121,17 @@ test("세 독립 브라우저에서 신고, 위치 지정, 설치, 실시간 및
         .filter({ hasText: "설치 건의 접수" })
         .first(),
     ).toBeVisible();
+    await expect(c.locator('.rank-row[aria-pressed="true"]')).toContainText(
+      "본관",
+    );
+    expect(
+      await adminMap!.evaluate(
+        (el) => el === document.querySelector("#management .map-surface"),
+      ),
+    ).toBe(true);
+    expect(
+      await c.locator("#management .basemap").getAttribute("viewBox"),
+    ).toBe(adminCamera);
     const proposal = {
       lat: five.lat + 0.00004,
       lng: five.lng,

@@ -158,11 +158,13 @@ function KakaoOverlay({
   map,
   pin,
   active,
+  passiveCandidate,
   children,
 }: {
   map: kakao.maps.Map;
   pin: Pin;
   active: boolean;
+  passiveCandidate: boolean;
   children: ReactNode;
 }) {
   const [el] = useState(() => document.createElement("div"));
@@ -172,18 +174,18 @@ function KakaoOverlay({
       map,
       position: new kakao.maps.LatLng(pin.lat, pin.lng),
       content: el,
-      clickable: true,
+      clickable: !passiveCandidate,
       yAnchor: 1,
       zIndex: 3,
     });
     overlayRef.current = overlay;
     return () => overlay.setMap(null);
-  }, [map, el, pin.lat, pin.lng]);
+  }, [map, el, pin.lat, pin.lng, passiveCandidate]);
   useEffect(() => {
     overlayRef.current?.setZIndex(
-      active ? 10 : pin.kind === "candidate" ? 8 : 3,
+      active ? 10 : passiveCandidate ? 2 : pin.kind === "candidate" ? 8 : 3,
     );
-  }, [active, pin.kind, pin.lat, pin.lng, map]);
+  }, [active, pin.kind, pin.lat, pin.lng, map, passiveCandidate]);
   return createPortal(children, el);
 }
 function PinControl({
@@ -211,7 +213,7 @@ function PinControl({
   return (
     <button
       type="button"
-      inert={!present}
+      inert={!present || (admin && grouped && p.kind === "candidate")}
       aria-hidden={!present || undefined}
       title={label}
       data-new-installation={p.fresh || undefined}
@@ -976,6 +978,9 @@ export default function CampusMap({
               key={p.id}
               map={map}
               pin={p}
+              passiveCandidate={
+                showZones === "admin" && grouping && p.kind === "candidate"
+              }
               active={
                 p.id === selected ||
                 !!members.get(p.id)?.some((m) => m.id === selected)
