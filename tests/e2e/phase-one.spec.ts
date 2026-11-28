@@ -131,12 +131,14 @@ test("실제 좌표의 그룹에서 각 거점을 열고 같은 시트에서 여
   await page.getByRole("button", { name: "시트 닫기" }).click();
   await page.getByRole("searchbox").fill("5호관 음료");
   await expect(list.first()).toContainText(other.name);
+  const exploring = await cam.state();
   full.fills.liquid = 0;
   other.fills.liquid = 100;
   s.version++;
   await page.evaluate(() => window.dispatchEvent(new Event("online")));
   await expect(list.first()).toContainText("100%");
   await expect(list.first()).toContainText(other.name);
+  expect(await cam.state()).toBe(exploring);
   await page.getByRole("searchbox").fill("음료 5호관");
   await expect(list.first()).toContainText(full.name);
 });
@@ -196,6 +198,8 @@ test("가로 결과의 첫 행과 마지막 유효 위치를 유지한다", asyn
         JSON.parse(sessionStorage.getItem("booth-student-request")!).draft
           .point,
     );
+  const candidate = page.locator(".pin.kind-candidate");
+  await expect(candidate).toBeInViewport({ ratio: 1 });
   const saved = await restored();
   // This visible map corner is outside the surveyed campus in the overview.
   await page.touchscreen.tap(8, 85);
@@ -280,7 +284,7 @@ test("화면 축척이 바뀌면 세 거점 중 겹치지 않는 핀만 분리�
   const a = await anchor(full.name, full.id);
   const b = await anchor(other.name, other.id);
   expect(Math.abs(b - a)).toBeGreaterThan(0);
-  other.lng = full.lng + ((other.lng - full.lng) * 36) / Math.abs(b - a);
+  other.lng = full.lng + ((other.lng - full.lng) * 40) / Math.abs(b - a);
   s.bins[2].lng = other.lng;
   s.version++;
   await page.evaluate(() => window.dispatchEvent(new Event("online")));
@@ -311,10 +315,8 @@ test("화면 축척이 바뀌면 세 거점 중 겹치지 않는 핀만 분리�
   await expect(dialog.locator(".station")).toHaveCount(3);
   await page.keyboard.press("Escape");
   const plus = page.getByRole("button", { name: "지도 확대" });
-  for (let i = 0; i < 2; i++) {
-    await plus.click();
-    await page.waitForTimeout(200);
-  }
+  await plus.click();
+  await expect(group).toBeAttached();
   await expect(group).not.toHaveAttribute("data-group-size", /.+/);
   await expect(marker(other.id)).toHaveAttribute("data-group-size", "2");
   await page.getByRole("button", { name: "지도 범위 맞추기" }).click();

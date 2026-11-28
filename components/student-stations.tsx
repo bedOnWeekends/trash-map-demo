@@ -125,7 +125,7 @@ function AlternativeList({
                   {b.zone_id === current.zone_id
                     ? "같은 건물"
                     : zoneName(b.zone_id)}{" "}
-                  / {labels[item]} {b.fills[item]}% 여유
+                  / {labels[item]} 포화도 {b.fills[item]}% (여유)
                 </small>
               </span>
               <ChevronRight size={16} />

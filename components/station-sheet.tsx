@@ -74,9 +74,21 @@ export function StationSheet({
         first && besideMap
           ? peek + (tools?.offsetHeight ?? 0) + first.offsetHeight + 4
           : peek;
+      const recommendation = body
+        .querySelector(".item-detail")
+        ?.querySelector(".station-alternatives .station");
+      const firstAlternative =
+        recommendation && !besideMap
+          ? peek +
+            Math.ceil(
+              recommendation.getBoundingClientRect().bottom -
+                body.getBoundingClientRect().top,
+            ) +
+            4
+          : peek;
       const half = Math.min(
         max,
-        Math.max(rowMinimum, Math.round(available * 0.5)),
+        Math.max(rowMinimum, firstAlternative, Math.round(available * 0.5)),
       );
       const choices: Stop[] = [{ snap: "peek", height: peek }];
       if (max > peek) {

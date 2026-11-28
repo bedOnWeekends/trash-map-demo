@@ -640,7 +640,16 @@ test("터치 지도 제스처, 직접 위치 지정, 안전 영역과 가로 시
     await page.setViewportSize({ width: 844, height: 390 });
     await page.getByRole("button", { name: "목록 펼치기" }).click();
     const handle = page.locator(".sheet-handle");
-    await handle.hover();
+    await expect(handle).toHaveAccessibleName("시트 최대로 펼치기");
+    await page.waitForFunction(() => {
+      const el = document.querySelector<HTMLElement>(".map-overlays")!;
+      return (
+        Math.abs(
+          document.querySelector(".station-sheet")!.getBoundingClientRect()
+            .height - parseFloat(el.style.getPropertyValue("--sheet-height")),
+        ) < 1
+      );
+    });
     const h = await handle.boundingBox();
     await touch("touchStart", [[h!.x + 40, h!.y + 25]]);
     await touch("touchMove", [[h!.x + 40, h!.y - 95]]);
