@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { AnimatedNumber } from "./motion/patterns";
+import { motion } from "motion/react";
+import { tween, duration } from "@/lib/motion";
+import { AnimatedNumber, useMotionPreference } from "./motion/patterns";
 import { sevenDays, type Rank } from "@/lib/admin-workflow";
 import { items, labels, fillState, type Snapshot } from "@/lib/model";
 import { Fill } from "./common";
@@ -54,6 +56,7 @@ export function Metrics({ s, ranks }: { s: Snapshot; ranks: Rank[] }) {
   );
 }
 function Trend({ s }: { s: Snapshot }) {
+  const transition = tween(useMotionPreference() ? 0 : duration.fast);
   const data = sevenDays(s);
   const [selected, select] = useState<string>();
   const current = data.find((d) => d.date === selected) ?? data[6];
@@ -81,22 +84,35 @@ function Trend({ s }: { s: Snapshot }) {
           </g>
         ))}
         {data.map((d, i) => (
-          <rect
+          <motion.rect
+            initial={false}
+            transition={transition}
             key={d.date}
             className="chart-bar"
             x={x(i) - 8}
-            y={y(d.entries)}
+            animate={{ y: y(d.entries), height: 100 - y(d.entries) }}
             width="16"
-            height={100 - y(d.entries)}
           />
         ))}
-        <polyline
+        <motion.polyline
+          initial={false}
+          transition={transition}
           className="chart-line"
-          points={data.map((d, i) => x(i) + "," + y(d.reports)).join(" ")}
+          animate={{
+            points: data.map((d, i) => x(i) + "," + y(d.reports)).join(" "),
+          }}
         />
         {data.map((d, i) => (
           <g key={d.date}>
-            <circle className="chart-dot" cx={x(i)} cy={y(d.reports)} r="3.5" />
+            <motion.circle
+              initial={false}
+              transition={transition}
+              className="chart-dot"
+              data-current={current.date === d.date || undefined}
+              cx={x(i)}
+              animate={{ cy: y(d.reports) }}
+              r={current.date === d.date ? 5 : 3.5}
+            />
             <text x={x(i)} y="122" textAnchor="middle">
               {d.date.slice(5).replace("-", "/")}
             </text>

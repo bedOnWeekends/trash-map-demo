@@ -6,6 +6,7 @@
   margin-bottom: var(--space-md);
 }
 .admin-workspace .page-heading h1 {
+  text-wrap: balance;
   font-size: clamp(1.45rem, 2.5vw, 2rem);
 }
 .booth-metrics.kpis {
@@ -102,7 +103,7 @@
   font-size: 0.75rem;
   color: var(--color-muted);
   font-weight: 400;
-  padding-left: 23px;
+  padding-left: var(--space-lg);
   overflow-wrap: anywhere;
 }
 .rank-row em {
@@ -196,6 +197,7 @@
   accent-color: var(--color-accent);
 }
 .saved-rail {
+  container-type: inline-size;
   position: absolute;
   inset: 0 8px;
   pointer-events: none;
@@ -205,7 +207,8 @@
   bottom: 0;
   height: 6px;
   border-left: 2px solid var(--color-ink);
-  transition: left var(--dur-fast);
+  width: 2px;
+  transition: transform var(--dur-fast);
 }
 .sensor-result {
   display: block;
@@ -328,5 +331,35 @@
 @media (prefers-reduced-motion: reduce) {
   .saved-rail i {
     transition: none;
+  }
+}
+
+.booth-metrics .rolling-number {
+  min-width: 1ch;
+}
+.review .map-surface[data-grouping] .pin:focus-visible {
+  border-radius: 50%;
+  outline: 2px dashed var(--color-focus);
+  outline-offset: 2px;
+}
+.chart-dot[data-current] {
+  fill: var(--color-accent);
+  stroke: var(--color-paper-3);
+}
+.booth-shortcuts {
+  display: none;
+}
+@media (max-width: 850px) {
+  .booth-shortcuts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-md);
+    font-size: var(--text-sm);
+  }
+  .booth-shortcuts a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    color: var(--color-accent);
   }
 }

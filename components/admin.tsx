@@ -152,6 +152,11 @@ function Dashboard({ b, s }: { b: Booth; s: Snapshot }) {
   return (
     <>
       <Metrics s={s} ranks={ranks} />
+      <nav className="booth-shortcuts" aria-label="운영 도구">
+        <a href="#management">구역 지도</a>
+        <a href="#stats">적재 통계</a>
+        <a href="#sensor">센서 설정</a>
+      </nav>
       <div className="recent-change">
         <strong>최근 변화</strong>
         <span aria-live="polite">
@@ -182,6 +187,18 @@ function Dashboard({ b, s }: { b: Booth; s: Snapshot }) {
                   .querySelector("#management .map-surface")
                   ?.getBoundingClientRect();
                 if (rect) camera.current?.reveal(r.zone, rect);
+                if (matchMedia("(max-width: 850px)").matches) {
+                  const heading =
+                    document.querySelector<HTMLElement>("#management h2");
+                  heading?.focus({ preventScroll: true });
+                  heading?.scrollIntoView({
+                    block: "start",
+                    behavior: matchMedia("(prefers-reduced-motion: reduce)")
+                      .matches
+                      ? "instant"
+                      : "smooth",
+                  });
+                }
               }}
             />
           ))}

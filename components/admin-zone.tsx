@@ -59,7 +59,7 @@ export function ZoneReview({
   return (
     <section id="management" className="panel review">
       <div className="title-row">
-        <h2>
+        <h2 tabIndex={-1}>
           <MapPin size={19} />
           {zone.name} 관리 구역
         </h2>

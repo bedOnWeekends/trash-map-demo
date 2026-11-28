@@ -39,7 +39,11 @@ export function useBooth(admin = false, enabled = true) {
       if (!res.ok) throw Error(json.error);
       if (active.current) {
         const prev = latest.current;
-        if (!prev || json.version > prev.version || (json.version === prev.version && json.as_of >= prev.as_of)) {
+        if (
+          !prev ||
+          json.version > prev.version ||
+          (json.version === prev.version && json.as_of >= prev.as_of)
+        ) {
           latest.current = json as Snapshot;
           setData(latest.current);
         }

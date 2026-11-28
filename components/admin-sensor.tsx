@@ -155,7 +155,9 @@ export function Sensor({
               />
               {committed != null && (
                 <div className="saved-rail" aria-hidden>
-                  <i style={{ left: committed + "%" }} />
+                  <i
+                    style={{ transform: "translateX(" + committed + "cqw)" }}
+                  />
                 </div>
               )}
             </div>

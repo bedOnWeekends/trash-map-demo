@@ -203,7 +203,11 @@ function PinControl({
 }) {
   const present = useIsPresent();
   const chosen = p.id === selected || !!members?.some((m) => m.id === selected);
-  const label = members ? (admin ? "지도 항목 " : "수거 거점 ") + members.length + (admin ? "개 선택" : "곳 선택") : p.name;
+  const label = members
+    ? (admin ? "지도 항목 " : "수거 거점 ") +
+      members.length +
+      (admin ? "개 선택" : "곳 선택")
+    : p.name;
   return (
     <button
       type="button"
@@ -226,7 +230,10 @@ function PinControl({
       {grouped ? (
         <span className="marker-face" key={chosen ? selected : "idle"}>
           {members ? (
-            <strong>{members.length}{admin ? "개" : "곳"}</strong>
+            <strong>
+              {members.length}
+              {admin ? "개" : "곳"}
+            </strong>
           ) : (
             <ItemIcon kind={p.kind} size={20} />
           )}
@@ -521,7 +528,7 @@ export default function CampusMap({
     };
   };
   const labelOffsets =
-    mobile && wide && !map
+    ((mobile && wide) || (showZones === "admin" && size.w < 520)) && !map
       ? landscapeLabels((p) => {
           const [x, y] = xy(p.lng, p.lat);
           return { x: (x - ox) * factor, y: (y - oy) * factor };
@@ -603,7 +610,15 @@ export default function CampusMap({
         ...groups.map((g) =>
           g.members.length === 1
             ? g.anchor
-            : { ...g.anchor, id: g.id, fresh: g.members.some((p) => p.fresh) },
+            : {
+                ...g.anchor,
+                id: g.id,
+                fresh: g.members.some((p) => p.fresh),
+                warning: g.members.reduce(
+                  (n, member) => n + (member.warning ?? 0),
+                  0,
+                ),
+              },
         ),
         ...pins.filter((p) => p.kind === "candidate"),
       ]
