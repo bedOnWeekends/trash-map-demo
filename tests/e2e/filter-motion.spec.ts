@@ -17,12 +17,12 @@ async function prepare(page: Page) {
     const waste: Waste[] = [
       "general",
       "plastic",
-      "paper",
+      "liquid",
       "plastic",
       "general",
-      "paper",
+      "liquid",
       "plastic",
-      "paper",
+      "liquid",
     ];
     snapshot.bins = snapshot.bins
       .slice(0, 8)
@@ -159,7 +159,7 @@ test("필터 중간 프레임과 최신 거점·시트·지도 상태가 일치�
     [null, "전체"],
     ["plastic", "플라스틱·PET"],
     [null, "전체"],
-    ["paper", "종이"],
+    ["liquid", "남은 음료"],
   ] as const) {
     const frames = await recordFilter(page, () => toggle(label));
     history.push({ item, frames });
@@ -186,7 +186,7 @@ test("필터 중간 프레임과 최신 거점·시트·지도 상태가 일치�
     contentType: "application/json",
   });
   await toggle("전체");
-  await toggle("종이");
+  await toggle("남은 음료");
   await toggle("플라스틱·PET");
   await expect
     .poll(ids)

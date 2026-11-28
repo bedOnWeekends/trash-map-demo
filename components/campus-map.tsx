@@ -55,7 +55,7 @@ function extent(points: readonly Point[]) {
 }
 const campusExtent = extent(zones);
 const isCompactLandscape = (width: number, height: number) =>
-  width >= 480 && width > height && height < 500;
+  width >= 400 && width > height && height < 500;
 function mapInsets(height: number, wide: boolean) {
   // Leave room for the search, the marker above its coordinate and the map toolbar.
   const top = Math.min(wide ? 108 : 144, height * 0.38);
@@ -87,6 +87,10 @@ function landscapeLabels(project: (p: Point) => { x: number; y: number }) {
       [0, 6],
       [-width - 21, 6],
       [21, 6],
+      [-width - 26, -51],
+      [26, -51],
+      [-width - 28, 26],
+      [28, 26],
     ];
     const boxes = options.map(([dx, dy]) => ({
       dx,
@@ -242,6 +246,8 @@ export default function CampusMap({
   onDeselect,
   onPick,
   zone,
+  showZones = "admin",
+  pickedZone,
   picking = false,
   mobile = false,
   cameraRef,
@@ -252,6 +258,8 @@ export default function CampusMap({
   onDeselect?: () => void;
   onPick?: (p: Point) => void;
   zone?: Zone;
+  showZones?: "admin" | "student";
+  pickedZone?: Zone;
   picking?: boolean;
   mobile?: boolean;
   cameraRef?: Ref<MobileCamera>;
@@ -405,25 +413,31 @@ export default function CampusMap({
   useEffect(() => {
     if (!map || !host.current) return;
     const colors = getComputedStyle(host.current);
-    const layers = zones.map(
+    const regions =
+      showZones === "admin" ? zones : pickedZone ? [pickedZone] : [];
+    const activeZone = showZones === "admin" ? zone : pickedZone;
+    const layers = regions.map(
       (z) =>
         new kakao.maps.Polygon({
           map,
           path: z.polygon.map(([lng, lat]) => new kakao.maps.LatLng(lat, lng)),
-          strokeWeight: z.id === zone?.id ? 3 : 1,
+          strokeWeight: z.id === activeZone?.id ? 3 : 1,
           strokeColor: colors.getPropertyValue("--color-accent").trim(),
-          strokeOpacity: z.id === zone?.id ? 1 : 0.32,
+          strokeOpacity: z.id === activeZone?.id ? 1 : 0.32,
           fillColor: colors.getPropertyValue("--color-accent-2").trim(),
-          fillOpacity: z.id === zone?.id ? 0.18 : 0.035,
+          fillOpacity: z.id === activeZone?.id ? 0.18 : 0.035,
         }),
     );
+    return () => layers.forEach((p) => p.setMap(null));
+  }, [map, zone, showZones, pickedZone]);
+  useEffect(() => {
+    if (!map || mobile) return;
     const points = zone ? zone.polygon : zones.flatMap((z) => z.polygon);
     const bounds = new kakao.maps.LatLngBounds();
     points.forEach(([lng, lat]) =>
       bounds.extend(new kakao.maps.LatLng(lat, lng)),
     );
-    if (!mobile) map.setBounds(bounds, 52, 38, 42, 38);
-    return () => layers.forEach((p) => p.setMap(null));
+    map.setBounds(bounds, 52, 38, 42, 38);
   }, [map, zone, mobile]);
   useEffect(() => {
     if (map && mobile && surface.current) {
@@ -520,39 +534,66 @@ export default function CampusMap({
     if (map) map.setLevel(Math.max(1, Math.min(8, map.getLevel() - v)));
     else zoom((old) => Math.max(0.65, Math.min(4, old * 1.32 ** v)));
   };
-  useImperativeHandle(cameraRef, () => ({
-    zoom: changeZoom,
-    reset,
-    reveal(point, visible) {
-      if (!surface.current) return;
-      const r = surface.current.getBoundingClientRect();
-      const coord = map && new kakao.maps.LatLng(point.lat, point.lng);
-      const projection = map?.getProjection();
-      const [gx, gy] = xy(point.lng, point.lat);
-      const screen =
-        coord && projection
-          ? projection.containerPointFromCoords(coord)
-          : { x: (gx - ox) * factor, y: (gy - oy) * factor };
-      const x = visible.x - r.x,
-        y = visible.y - r.y;
-      if (
-        screen.x > x + 24 &&
-        screen.x < x + visible.width - 24 &&
-        screen.y > y + 42 &&
-        screen.y < y + visible.height - 12
-      )
-        return;
-      const dx = x + visible.width / 2 - screen.x,
-        dy = y + visible.height / 2 - screen.y;
-      if (map && projection) {
-        const goal = projection.coordsFromContainerPoint(
-          new kakao.maps.Point(r.width / 2 - dx, r.height / 2 - dy),
-        );
-        if (reduced) map.setCenter(goal);
-        else map.panTo(goal);
-      } else animateCamera(pan.x + dx, pan.y + dy);
-    },
-  }));
+  // A cold deep link can be consumed while the schematic is still on screen.
+  // Replay just that explicit request after the native projection becomes ready.
+  const pendingReveal = useRef<{ point: Point; visible: DOMRect } | null>(null);
+  function reveal(point: Point, visible: DOMRect) {
+    if (!map && !failure) pendingReveal.current = { point, visible };
+
+    if (!surface.current) return;
+    const r = surface.current.getBoundingClientRect();
+    const coord = map && new kakao.maps.LatLng(point.lat, point.lng);
+    const projection = map?.getProjection();
+    const [gx, gy] = xy(point.lng, point.lat);
+    const screen =
+      coord && projection
+        ? projection.containerPointFromCoords(coord)
+        : { x: (gx - ox) * factor, y: (gy - oy) * factor };
+    const x = visible.x - r.x,
+      y = visible.y - r.y;
+    if (
+      screen.x > x + 24 &&
+      screen.x < x + visible.width - 24 &&
+      screen.y > y + 42 &&
+      screen.y < y + visible.height - 12
+    )
+      return;
+    const dx = x + visible.width / 2 - screen.x,
+      dy = y + visible.height / 2 - screen.y;
+    if (map && projection) {
+      const goal = projection.coordsFromContainerPoint(
+        new kakao.maps.Point(r.width / 2 - dx, r.height / 2 - dy),
+      );
+      if (reduced) map.setCenter(goal);
+      else map.panTo(goal);
+    } else animateCamera(pan.x + dx, pan.y + dy);
+  }
+  const revealOnReady = useEffectEvent(() => {
+    const pending = pendingReveal.current;
+    pendingReveal.current = null;
+    if (
+      pending &&
+      surface.current?.checkVisibility({ visibilityProperty: true }) &&
+      !surface.current.closest("[inert]")
+    )
+      reveal(pending.point, pending.visible);
+  });
+  useEffect(() => {
+    if (map) {
+      revealOnReady();
+      return;
+    }
+    const cancel = () => {
+      pendingReveal.current = null;
+    };
+    for (const name of ["pointerdown", "wheel", "keydown", "popstate"])
+      window.addEventListener(name, cancel, true);
+    return () => {
+      for (const name of ["pointerdown", "wheel", "keydown", "popstate"])
+        window.removeEventListener(name, cancel, true);
+    };
+  }, [map]);
+  useImperativeHandle(cameraRef, () => ({ zoom: changeZoom, reset, reveal }));
   const pinButton = (pin: Pin) => (
     <PinControl
       p={pin}
@@ -713,10 +754,18 @@ export default function CampusMap({
                   <path className={l.kind} d={l.d + "Z"} key={i} />
                 ))}
             </g>
-            {zones.map((z) => (
+            {(showZones === "admin"
+              ? zones
+              : pickedZone
+                ? [pickedZone]
+                : []
+            ).map((z) => (
               <path
                 key={z.id}
-                className={"zone " + (zone?.id === z.id ? "active" : "")}
+                data-zone={z.id}
+                className={
+                  "zone " + ((pickedZone ?? zone)?.id === z.id ? "active" : "")
+                }
                 d={path(z.polygon) + "Z"}
               />
             ))}

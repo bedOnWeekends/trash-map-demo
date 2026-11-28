@@ -13,10 +13,15 @@ export function useBooth(admin = false, enabled = true) {
   const [data, setData] = useState<Snapshot | null>(null),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
-    [message, setMessage] = useState({ text: "", kind: "info" as NoticeKind });
+    [message, setMessage] = useState({
+      text: "",
+      kind: "info" as NoticeKind,
+      requestAction: false,
+    });
   const { text: notice, kind: noticeKind } = message;
   const notify = useCallback(
-    (text: string, kind: NoticeKind = "info") => setMessage({ text, kind }),
+    (text: string, kind: NoticeKind = "info", requestAction = false) =>
+      setMessage({ text, kind, requestAction }),
     [],
   );
   const active = useRef(true),
@@ -115,7 +120,7 @@ export function useBooth(admin = false, enabled = true) {
     };
   }, [refresh, enabled]);
   useEffect(() => {
-    if (!notice) return;
+    if (!notice || message.requestAction) return;
     const t = setTimeout(() => notify(""), 5500);
     return () => clearTimeout(t);
   }, [message, notice, notify]);
@@ -143,7 +148,7 @@ export function useBooth(admin = false, enabled = true) {
         throw Error(json.error);
       }
       retry.current = null;
-      notify(success, "success");
+      notify(success, "success", path === "requests");
       await refresh();
       return true;
     } catch (e) {
@@ -164,6 +169,7 @@ export function useBooth(admin = false, enabled = true) {
     busy,
     notice,
     noticeKind,
+    requestAction: message.requestAction,
     notify,
     refresh,
     mutate,

@@ -8,7 +8,13 @@ import { SheetDragging } from "./station-sheet";
 import { ChevronRight, Check, LoaderCircle, TriangleAlert } from "lucide-react";
 import { ItemIcon, Fill } from "./common";
 import { ConfirmDialog } from "./ui/dialog";
-import { labels, zoneName, type Bin, type Waste } from "@/lib/model";
+import {
+  labels,
+  preferredItems,
+  zoneName,
+  type Bin,
+  type Waste,
+} from "@/lib/model";
 import type { Booth } from "@/lib/use-booth";
 import type { Pin } from "./campus-map";
 export type ReportTarget = { id: string; item: Waste };
@@ -20,10 +26,12 @@ export const binPin = (b: Bin): Pin => ({
 export function BinDetail({
   current,
   compact = false,
+  preferred,
   confirmReport,
 }: {
   current: Bin;
   compact?: boolean;
+  preferred?: Waste | null;
   confirmReport: (r: ReportTarget) => void;
 }) {
   return (
@@ -41,8 +49,12 @@ export function BinDetail({
       </p>
       <div className="divider" />
       <h3>품목별 포화도</h3>
-      {current.waste_types.map((t) => (
-        <div className="item-detail" key={t}>
+      {preferredItems(current.waste_types, preferred).map((t) => (
+        <div
+          className={"item-detail kind-" + t}
+          data-preferred={t === preferred || undefined}
+          key={t}
+        >
           <div className="title-row">
             <strong>
               <ItemIcon kind={t} />
@@ -64,9 +76,11 @@ export function BinDetail({
 }
 export function StationList({
   filtered,
+  filter,
   choose,
 }: {
   filtered: Bin[];
+  filter?: Waste | null;
   choose: (pin: Pin) => void;
 }) {
   const list = useRef<HTMLDivElement>(null);
@@ -119,7 +133,7 @@ export function StationList({
     >
       <AnimatePresence mode="popLayout" initial={false}>
         {filtered.map((b) => (
-          <StationRow key={b.id} bin={b} choose={choose} />
+          <StationRow key={b.id} bin={b} filter={filter} choose={choose} />
         ))}
       </AnimatePresence>
     </div>
@@ -127,8 +141,8 @@ export function StationList({
 }
 const StationRow = forwardRef<
   HTMLDivElement,
-  { bin: Bin; choose: (p: Pin) => void }
->(function StationRow({ bin: b, choose }, ref) {
+  { bin: Bin; filter?: Waste | null; choose: (p: Pin) => void }
+>(function StationRow({ bin: b, filter, choose }, ref) {
   const present = useIsPresent();
   const drag = useContext(SheetDragging);
   const reduce = useMotionPreference();
@@ -146,14 +160,24 @@ const StationRow = forwardRef<
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={tween(drag || reduce ? 0 : duration.micro)}
-        onClick={() => choose(binPin(b))}
+        onClick={(e) => {
+          e.currentTarget.dataset.opening = "";
+          choose(binPin(b));
+        }}
       >
         <span className={"station-icon kind-" + binPin(b).kind}>
           <ItemIcon kind={binPin(b).kind} />
         </span>
         <span>
           <strong>{b.name}</strong>
-          <small>{b.waste_types.map((t) => labels[t]).join(" / ")}</small>
+          {filter ? (
+            <span className="station-reading">
+              <span>{labels[filter]} 포화도</span>
+              <Fill value={b.fills[filter]} />
+            </span>
+          ) : (
+            <small>{b.waste_types.map((t) => labels[t]).join(" / ")}</small>
+          )}
         </span>
         <ChevronRight size={16} />
       </motion.button>
@@ -206,5 +230,36 @@ export function ReportDialog({
         {busy ? "접수 중…" : "확인하고 신고"}
       </PressButton>
     </ConfirmDialog>
+  );
+}
+
+export function EmptySearch({
+  query,
+  filter,
+  clearQuery,
+  clearFilter,
+}: {
+  query: string;
+  filter: Waste | null;
+  clearQuery: () => void;
+  clearFilter: () => void;
+}) {
+  return (
+    <div className="empty empty-reveal">
+      <p>
+        {[query.trim() && "“" + query.trim() + "”", filter && labels[filter]]
+          .filter(Boolean)
+          .join(" / ") || "현재 조건"}
+        에 맞는 거점이 없어요.
+      </p>
+      <div className="empty-actions">
+        {filter && (
+          <PressButton onClick={clearFilter}>품목 필터만 해제</PressButton>
+        )}
+        {query.trim() && (
+          <PressButton onClick={clearQuery}>검색어 지우기</PressButton>
+        )}
+      </div>
+    </div>
   );
 }

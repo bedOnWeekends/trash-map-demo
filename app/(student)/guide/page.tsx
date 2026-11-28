@@ -1,5 +1,5 @@
 "use client";
-import { ViewTransition } from "react";
+import { mapHref } from "@/lib/student-navigation";
 import { useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { useMobileStudent } from "@/components/student-shell";
@@ -38,8 +38,6 @@ export default function Guide() {
     [item, choose] = useState<Waste | null>(null);
   if (mobile)
     return (
-      <>
-        <ViewTransition default="none" exit="tab-crossfade">
           <main className="mobile-reading">
             <div className="reading-heading">
               <h1>분리배출 안내</h1>
@@ -79,10 +77,18 @@ export default function Guide() {
                   </div>
                 )
               }
-            />
+            >
+              {item && (
+                <Link
+                  className="primary"
+                  href={mapHref({ type: "filter", waste: item })}
+                >
+                  {labels[item]} 수거함 찾기
+                </Link>
+              )}
+            </ConfirmDialog>
           </main>
-        </ViewTransition>
-      </>
+
     );
   return (
     <>
@@ -101,6 +107,12 @@ export default function Guide() {
               <h2>{labels[t]}</h2>
               <strong>{tips[t][0]}</strong>
               <p>{tips[t][1]}</p>
+              <Link
+                className="text-link"
+                href={mapHref({ type: "filter", waste: t })}
+              >
+                {labels[t]} 수거함 찾기
+              </Link>
             </div>
           </article>
         ))}

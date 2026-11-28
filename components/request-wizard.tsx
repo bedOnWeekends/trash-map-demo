@@ -64,6 +64,44 @@ export function saveDraft(epoch: string | undefined, draft: Draft | null) {
     /* The open wizard still retains its state when storage is unavailable. */
   }
 }
+export function ReasonPresets({
+  reason,
+  change,
+}: {
+  reason: string;
+  change: (v: string) => void;
+}) {
+  const presets = [
+    "음료를 비울 곳이 없어요.",
+    "주변에 수거함이 부족해요.",
+    "수거함이 자주 가득 차요.",
+  ];
+  return (
+    <div className="reason-presets" aria-label="자주 쓰는 사유">
+      {presets.map((text) => {
+        const next =
+          reason.trim() && !presets.includes(reason)
+            ? reason.trimEnd() + " " + text
+            : text;
+        return (
+          <PressButton
+            key={text}
+            type="button"
+            aria-label={
+              reason.trim() && !presets.includes(reason)
+                ? text + " 덧붙이기"
+                : text
+            }
+            disabled={next.length > 400 || reason.endsWith(text)}
+            onClick={() => change(next)}
+          >
+            {text}
+          </PressButton>
+        );
+      })}
+    </div>
+  );
+}
 const titles = ["위치 지정", "품목 선택", "사유 입력"];
 export function RequestWizard({
   draft,
@@ -184,6 +222,10 @@ export function RequestWizard({
                 onChange={(e) => change({ ...draft, reason: e.target.value })}
               />
             </label>
+            <ReasonPresets
+              reason={reason}
+              change={(reason) => change({ ...draft, reason })}
+            />
             <small>{reason.length} / 400자</small>
           </>
         )}

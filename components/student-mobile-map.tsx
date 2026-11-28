@@ -28,6 +28,7 @@ import { ItemIcon, LoadState, Notice } from "./common";
 
 import {
   BinDetail,
+  EmptySearch,
   StationList,
   ReportDialog,
   binPin,
@@ -45,14 +46,15 @@ import {
   items,
   labels,
   zoneAt,
-  zoneName,
+  searchBins,
   type Point,
   type Waste,
 } from "@/lib/model";
 import type { Booth } from "@/lib/use-booth";
 
+import { MapIntentReceiver } from "./map-intent";
 import { StationSheet, type Snap } from "./station-sheet";
-const frequent: Waste[] = ["general", "plastic", "paper"];
+const frequent: Waste[] = ["liquid", "plastic", "general"];
 export function MobileMap({
   booth,
   active,
@@ -86,13 +88,7 @@ export function MobileMap({
   };
   const fresh = useInstalledBins(data?.bins, data?.epoch);
   const bins = data?.bins ?? [];
-  const filtered = bins.filter(
-    (b) =>
-      (!filter || b.waste_types.includes(filter)) &&
-      (b.name + zoneName(b.zone_id) + b.location_description)
-        .toLowerCase()
-        .includes(query.trim().toLowerCase()),
-  );
+  const filtered = searchBins(bins, query, filter);
   const current = bins.find((b) => b.id === selected);
   const contentId = current?.id ?? "list";
   const [previous, remember] = useState(contentId);
@@ -113,6 +109,7 @@ export function MobileMap({
     select("");
   };
   const updateFilter = (next: Waste | null) => {
+    if (!filterOpen && layer.current) delete layer.current.dataset.filterExit;
     setFilter(next);
     select("");
     openFilter(false);
@@ -200,8 +197,52 @@ export function MobileMap({
       ?.querySelector(".sheet-scroll")
       ?.scrollTo(0, contentId === "list" ? listScroll.current : 0);
   }, [contentId]);
+  const startRequest = () => {
+    select("");
+    input.current?.blur();
+    changeDraft(
+      draft ??
+        savedDraft(data?.epoch) ?? {
+          ...emptyDraft,
+          types: filter ? [filter] : [],
+        },
+    );
+  };
   return (
     <>
+      <MapIntentReceiver
+        booth={booth}
+        active={active}
+        apply={(intent, bin) => {
+          if (intent.type === "request") {
+            startRequest();
+            return;
+          }
+          if (intent.type === "invalid" || (intent.type === "bin" && !bin)) {
+            notify("요청한 거점을 확인할 수 없어요. 지도에서 다시 찾아주세요.");
+            return;
+          }
+          // Explicit exploration pauses the editor; its epoch-scoped draft stays saved.
+          setDraft(null);
+          openFilter(false);
+          askDiscard(false);
+          setReport(null);
+          if (intent.type === "filter") {
+            search("");
+            updateFilter(intent.waste);
+            return;
+          }
+          if (bin) {
+            if (!searchBins([bin], query, filter).length) {
+              search("");
+              setFilter(null);
+            }
+            select(bin.id);
+            setSnap("half");
+            reveal(bin);
+          }
+        }}
+      />
       <main
         className="mobile-workbench"
         onPointerDownCapture={cancelReveal}
@@ -227,12 +268,26 @@ export function MobileMap({
             onSelect={choose}
             onDeselect={draft ? undefined : closeDetail}
             onPick={pick}
+            showZones="student"
+            pickedZone={
+              draft?.step === 1 && draft.point ? zoneAt(draft.point) : undefined
+            }
             picking={step === 1}
             mobile
             cameraRef={camera}
           />
         </div>
-        <div className="map-overlays" ref={layer}>
+        <div
+          className="map-overlays"
+          ref={layer}
+          onAnimationEnd={(event) => {
+            if (
+              event.target instanceof HTMLElement &&
+              event.target.matches(".sheet-label")
+            )
+              delete layer.current?.dataset.filterExit;
+          }}
+        >
           <div className="map-space">
             {!draft && !current && (
               <div className="floating-search">
@@ -242,7 +297,7 @@ export function MobileMap({
                     ref={input}
                     type="search"
                     aria-label="건물 및 수거함 검색"
-                    placeholder="건물명 또는 수거함 검색"
+                    placeholder="건물·수거함 검색"
                     value={query}
                     onChange={(e) => {
                       search(e.target.value);
@@ -277,6 +332,9 @@ export function MobileMap({
                     onClick={() => openFilter(true)}
                   >
                     <SlidersHorizontal size={19} />
+                    <span className="filter-short-label">
+                      {filter ? labels[filter] : "품목"}
+                    </span>
                   </PressButton>
                 </div>
                 <div className="quick-filters" aria-label="품목 필터">
@@ -301,21 +359,37 @@ export function MobileMap({
                 </div>
               </div>
             )}
-            {!draft && <Notice kind={booth.noticeKind} text={booth.notice} />}
+            {!draft && (
+              <Notice
+                kind={booth.noticeKind}
+                text={booth.notice}
+                requestAction={
+                  booth.requestAction ? () => notify("") : undefined
+                }
+              />
+            )}
             <div className="map-tool-space">
               <div className="map-actions">
                 {!draft && (
                   <PressButton
                     className="proposal-fab primary"
                     disabled={!data}
-                    onClick={() => {
-                      select("");
-                      changeDraft({ ...emptyDraft });
-                      input.current?.blur();
-                    }}
+                    aria-label={
+                      savedDraft(data?.epoch)
+                        ? "작성 이어가기"
+                        : "추가 설치 건의"
+                    }
+                    onClick={startRequest}
                   >
                     <Plus size={18} />
-                    추가 설치 건의
+                    <span className="fab-short" aria-hidden>
+                      {savedDraft(data?.epoch) ? "이어가기" : "건의"}
+                    </span>
+                    <span className="fab-label">
+                      {savedDraft(data?.epoch)
+                        ? "작성 이어가기"
+                        : "추가 설치 건의"}
+                    </span>
                   </PressButton>
                 )}
                 {(step === undefined || step === 1) && (
@@ -372,10 +446,20 @@ export function MobileMap({
                   ) : (
                     <List size={18} />
                   )}
-                  {current ? current.name : "수거 거점"}
+                  {current
+                    ? current.name
+                    : filter
+                      ? labels[filter] + " 수거 거점"
+                      : "수거 거점"}
                   {!current && (
                     <b>
-                      {data ? <AnimatedNumber value={filtered.length} /> : "…"}
+                      {data ? (
+                        <>
+                          <AnimatedNumber value={filtered.length} />곳
+                        </>
+                      ) : (
+                        "…"
+                      )}
                     </b>
                   )}
                 </>
@@ -404,6 +488,7 @@ export function MobileMap({
                 {current ? (
                   <BinDetail
                     compact
+                    preferred={filter}
                     current={current}
                     confirmReport={setReport}
                   />
@@ -414,12 +499,15 @@ export function MobileMap({
                         <LoadState error={error} retry={booth.refresh} />
                       )}
                       {data && !filtered.length && (
-                        <p className="empty empty-reveal">
-                          <Search size={18} aria-hidden />
-                          일치하는 거점이 없어요. 검색어나 품목을 바꿔 보세요.
-                        </p>
+                        <EmptySearch
+                          query={query}
+                          filter={filter}
+                          clearFilter={() => updateFilter(null)}
+                          clearQuery={() => search("")}
+                        />
                       )}
                       <StationList
+                        filter={filter}
                         filtered={filtered}
                         choose={(pin) => {
                           choose(pin);
@@ -457,7 +545,10 @@ export function MobileMap({
                   key={t}
                   className={"kind-" + t}
                   aria-pressed={filter === t}
-                  onClick={() => updateFilter(t)}
+                  onClick={() => {
+                    if (layer.current) layer.current.dataset.filterExit = "";
+                    updateFilter(t);
+                  }}
                 >
                   <ItemIcon kind={t} />
                   {labels[t]}

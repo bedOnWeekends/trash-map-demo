@@ -1,6 +1,7 @@
 "use client";
+import { priorityChanges } from "@/lib/priority-change";
 import { PressButton } from "./ui/press-button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   StatusLabel,
@@ -599,14 +600,24 @@ function ZoneReview({ rank, s, b }: { rank: Rank; s: Snapshot; b: Booth }) {
     </section>
   );
 }
+function RankReason({ text }: { text: string }) {
+  const [visible, show] = useState(true);
+  useEffect(() => {
+    const timer = setTimeout(() => show(false), 7000);
+    return () => clearTimeout(timer);
+  }, []);
+  return visible ? <span>{text}</span> : null;
+}
 function RankRow({
   r,
   position,
+  reason,
   selected,
   select,
 }: {
   r: Rank;
   position: number;
+  reason?: { text: string; revision: number };
   selected: boolean;
   select: () => void;
 }) {
@@ -636,10 +647,31 @@ function RankRow({
       <b>
         <AnimatedNumber value={r.score} />
       </b>
+      <span className="rank-explanation">
+        {reason && <RankReason key={reason.revision} text={reason.text} />}
+      </span>
     </motion.button>
   );
 }
 function Dashboard({ b, s }: { b: Booth; s: Snapshot }) {
+  const [previous, remember] = useState(s);
+  const [explanations, setExplanations] = useState(
+    new Map<string, { text: string; revision: number }>(),
+  );
+  if (previous !== s) {
+    remember(s);
+    const changes = priorityChanges(previous, s);
+    if (previous.epoch !== s.epoch) setExplanations(new Map());
+    else if (changes.size) {
+      const updated = new Map(explanations);
+      for (const [id, text] of changes)
+        updated.set(id, {
+          text,
+          revision: (updated.get(id)?.revision ?? 0) + 1,
+        });
+      setExplanations(updated);
+    }
+  }
   const ranks = rankings(s),
     [id, setId] = useState(ranks[0].zone.id),
     rank = ranks.find((r) => r.zone.id === id)!,
@@ -661,6 +693,7 @@ function Dashboard({ b, s }: { b: Booth; s: Snapshot }) {
             <RankRow
               key={r.zone.id}
               r={r}
+              reason={explanations.get(r.zone.id)}
               position={i + 1}
               selected={r.zone.id === id}
               select={() => setId(r.zone.id)}

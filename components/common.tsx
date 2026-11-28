@@ -109,9 +109,11 @@ export function Shell({ admin = false }: { admin?: boolean }) {
 export function Notice({
   text,
   kind = "info",
+  requestAction,
 }: {
   text: string;
   kind?: NoticeKind;
+  requestAction?: () => void;
 }) {
   const Icon =
     kind === "success" ? Check : kind === "error" ? TriangleAlert : Info;
@@ -128,7 +130,21 @@ export function Notice({
             exit={{ opacity: 0 }}
             transition={tween(duration.fast)}
           >
-            <Icon size={18} aria-hidden /> {text}
+            <Icon size={18} aria-hidden /> <span>{text}</span>
+            {requestAction && (
+              <>
+                <Link href="/requests" onClick={requestAction}>
+                  내 건의 보기
+                </Link>
+                <button
+                  type="button"
+                  aria-label="접수 안내 닫기"
+                  onClick={requestAction}
+                >
+                  닫기
+                </button>
+              </>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -190,13 +206,13 @@ export function ItemPicker({
 export function Fill({ value }: { value: number | null | undefined }) {
   const state = fillState(value);
   return (
-    <div className="fill" data-level={state}>
+    <span className="fill" data-level={state}>
       <span className="meter">
         <i style={{ transform: "scaleX(" + (value ?? 0) / 100 + ")" }} />
       </span>
       <span className="fill-value">{value == null ? "—" : value + "%"}</span>
       <span>{state}</span>
-    </div>
+    </span>
   );
 }
 export function Footer() {
