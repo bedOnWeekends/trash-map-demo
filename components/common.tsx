@@ -112,11 +112,13 @@ export function Notice({
   text,
   kind = "info",
   receipt,
+  receiptId,
   requestAction,
 }: {
   text: string;
   kind?: NoticeKind;
   receipt?: RequestRow;
+  receiptId?: string;
   requestAction?: () => void;
 }) {
   const Icon =
@@ -147,7 +149,7 @@ export function Notice({
               <>
                 <Link
                   href={
-                    receipt ? "/requests#request-" + receipt.id : "/requests"
+                    receiptId ? "/requests#request-" + receiptId : "/requests"
                   }
                   onClick={requestAction}
                 >

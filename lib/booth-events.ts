@@ -1,4 +1,11 @@
-import { rankings, type Snapshot, type Waste } from "./model";
+import {
+  day,
+  daysThrough,
+  zoneName,
+  rankings,
+  type Snapshot,
+  type Waste,
+} from "./model";
 import { priorityChanges } from "./priority-change";
 
 export type BoothEvent = {
@@ -63,17 +70,25 @@ export function boothEvents(before: Snapshot, after: Snapshot): BoothEvent[] {
   }
   const previous = rankings(before),
     current = rankings(after);
-  for (const [zone, reason] of priorityChanges(before, after)) {
+  const dates = daysThrough(after.as_of);
+  const liveReports = new Map(after.reports.map((r) => [r.id, r]));
+  for (const rank of previous) {
+    for (const r of rank.reports) {
+      if (
+        !dates.includes(day(r.created_at)) &&
+        !liveReports.get(r.id)?.considered_batch_id
+      )
+        add(r.zone_id, "신고 집계 만료", [r.waste_type]);
+    }
+  }
+  for (const zone of priorityChanges(before, after).keys()) {
     const from = previous.findIndex((r) => r.zone.id === zone);
     const to = current.findIndex((r) => r.zone.id === zone);
     let first = [...groups.values()].find(
       (e) => e.zone === zone && e.label !== "센서 측정값 변경",
     );
     if (!first) {
-      const label = reason.includes("집계 만료")
-        ? "신고 집계 만료"
-        : "우선순위 집계 변경";
-      add(zone, label, []);
+      add(zone, "우선순위 집계 변경", []);
       first = [...groups.values()].at(-1)!;
     }
     first.window = {
@@ -88,14 +103,21 @@ export type EventDeck = {
   current?: BoothEvent;
   waiting: BoothEvent[];
   compressed: number;
+  summary: Record<string, number>;
 };
-export const emptyDeck: EventDeck = { waiting: [], compressed: 0 };
+export const emptyDeck: EventDeck = { waiting: [], compressed: 0, summary: {} };
 export function enqueue(deck: EventDeck, incoming: BoothEvent[]): EventDeck {
   if (!incoming.length) return deck;
   const waiting = [...deck.waiting, ...incoming];
   const current = deck.current ?? waiting.shift();
   const overflow = Math.max(0, waiting.length - 24);
+  const summary = { ...deck.summary };
+  for (const e of waiting.slice(0, overflow)) {
+    const label = zoneName(e.zone) + " · " + e.label;
+    summary[label] = (summary[label] ?? 0) + e.count;
+  }
   return {
+    summary,
     current,
     waiting: waiting.slice(overflow),
     compressed: deck.compressed + overflow,
@@ -107,5 +129,6 @@ export function advance(deck: EventDeck): EventDeck {
     current: deck.waiting[0],
     waiting: deck.waiting.slice(1),
     compressed: 0,
+    summary: {},
   };
 }

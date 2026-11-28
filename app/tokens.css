@@ -43,6 +43,7 @@
   --distance-slide: 16px;
   --scale-press: .97;
   --scale-dialog: .95;
+  --change-surface: color-mix(in srgb, var(--color-accent-2) 18%, white);
   --tab-surface: #E2EFF9;
   --color-error: oklch(52% 0.19 27);
   --color-success: oklch(50% 0.12 150);

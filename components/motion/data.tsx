@@ -18,7 +18,7 @@ export function useChangeHighlight<T extends HTMLElement>(
     if (reduced || !ref.current) return;
     const animation = ref.current.animate(
       [
-        { backgroundColor: "var(--tab-surface)" },
+        { backgroundColor: "var(--change-surface)" },
         { backgroundColor: getComputedStyle(ref.current).backgroundColor },
       ],
       { duration: duration.emphasis * 1000 },

@@ -36,7 +36,7 @@
   --mixed: #7351a8;
   --candidate: #156ba9;
   --warn: #a43d2f;
-  --subtle: color-mix(in srgb, var(--color-accent-2) 8%, var(--color-paper));
+  --subtle: color-mix(in srgb, var(--color-accent) 8%, var(--color-paper));
   --map-bg: #e8eff3;
   --building: #d0dce5;
   --building-edge: #adbdca;
@@ -44,7 +44,7 @@
   --lawn: #c3d6b8;
   --water: #afdbe9;
   --zone: #708599;
-  --selected: color-mix(in srgb, var(--color-accent-2) 18%, var(--map-bg));
+  --selected: color-mix(in srgb, var(--color-accent) 18%, var(--map-bg));
   --empty: #77827d;
   --ok: #2e7650;
   --mid: #916819;

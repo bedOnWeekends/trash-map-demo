@@ -20,7 +20,6 @@ import {
   fillState,
   labels,
   preferredItems,
-  timeText,
   type Snapshot,
   zoneName,
   type Bin,
@@ -94,7 +93,12 @@ export function BinDetail({
             {limited && (
               <small className="cooldown-time">
                 <time dateTime={limited.retry_at}>
-                  {timeText(limited.retry_at)}
+                  {new Date(limited.retry_at).toLocaleTimeString("ko-KR", {
+                    timeZone: "Asia/Seoul",
+                    hour: "numeric",
+                    minute: "2-digit",
+                    second: "2-digit",
+                  })}
                 </time>
                 부터 재신고 가능
               </small>

@@ -393,7 +393,7 @@ export default function Admin() {
       <main className="workspace admin-workspace">
         <div className="page-heading">
           <div>
-            <h1>관리자 대시보드</h1>
+            <h1>{exhibit ? "캠퍼스 수거 현황" : "관리자 대시보드"}</h1>
           </div>
           <div className="actions">
             {b.data && (

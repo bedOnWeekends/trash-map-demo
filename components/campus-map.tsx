@@ -463,15 +463,19 @@ export default function CampusMap({
     const regions =
       showZones === "admin" ? zones : pickedZone ? [pickedZone] : [];
     const activeZone = pickedZone ?? zone;
+    const emphasis =
+      showZones === "admin" && pickedZone && !zone
+        ? "--color-accent-2"
+        : "--color-accent";
     const layers = regions.map(
       (z) =>
         new kakao.maps.Polygon({
           map,
           path: z.polygon.map(([lng, lat]) => new kakao.maps.LatLng(lat, lng)),
           strokeWeight: z.id === activeZone?.id ? 3 : 1,
-          strokeColor: colors.getPropertyValue("--color-accent").trim(),
+          strokeColor: colors.getPropertyValue(emphasis).trim(),
           strokeOpacity: z.id === activeZone?.id ? 1 : 0.32,
-          fillColor: colors.getPropertyValue("--color-accent-2").trim(),
+          fillColor: colors.getPropertyValue(emphasis).trim(),
           fillOpacity: z.id === activeZone?.id ? 0.18 : 0.035,
         }),
     );

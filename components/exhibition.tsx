@@ -24,12 +24,15 @@ export function EventCard({
             <strong>{zoneName(current.zone)}</strong>
             <span>
               {current.types.map((t) => labels[t]).join(" · ")} {current.label}{" "}
-              {current.count}건
+              {current.label !== "우선순위 집계 변경" && current.count + "건"}
             </span>
             {current.window && (
               <small>
-                이번 갱신 합계 · {current.window.delta > 0 ? "+" : ""}
-                {current.window.delta}점
+                이번 갱신 합계 ·{" "}
+                <b>
+                  {current.window.delta > 0 ? "+" : ""}
+                  {current.window.delta}점
+                </b>
                 {current.window.from !== current.window.to &&
                   " · " +
                     current.window.from +
@@ -49,7 +52,16 @@ export function EventCard({
           <span>{waiting.length}묶음</span>
         </PressButton>
       )}
-      {compressed > 0 && <small>이전 변화 {compressed}묶음 요약</small>}
+      {compressed > 0 && (
+        <details className="event-summary">
+          <summary>이전 변화 {compressed}묶음</summary>
+          {Object.entries(deck.summary).map(([label, n]) => (
+            <small key={label}>
+              {label} {n}건
+            </small>
+          ))}
+        </details>
+      )}
     </section>
   );
 }
@@ -81,7 +93,7 @@ export function Exhibition({
     <section className="exhibition" aria-label="관람객 화면">
       <div className="exhibit-map">
         <h2>
-          <MapPin size={20} /> 캠퍼스 수거 현황 <small>{s.bins.length}곳</small>
+          <MapPin size={20} /> 수거 거점 <small>{s.bins.length}곳</small>
         </h2>
         <CampusMap
           pins={s.bins.map(binPin)}

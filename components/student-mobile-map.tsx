@@ -421,11 +421,12 @@ export function MobileMap({
                 </div>
               </div>
             )}
-            {!draft && (
+            {active && !draft && (
               <Notice
                 kind={booth.noticeKind}
                 text={booth.notice}
                 receipt={booth.receipt}
+                receiptId={booth.receiptId}
                 requestAction={
                   booth.requestAction ? () => notify("") : undefined
                 }
@@ -512,6 +513,7 @@ export function MobileMap({
                     }}
                   >
                     <ArrowLeft size={18} />
+                    <span className="back-caption">목록</span>
                   </button>
                 )
               }

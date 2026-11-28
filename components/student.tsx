@@ -517,6 +517,7 @@ function StudentScreen({ booth }: { booth: Booth }) {
         kind={booth.noticeKind}
         text={notice}
         receipt={booth.receipt}
+        receiptId={booth.receiptId}
         requestAction={booth.requestAction ? () => notify("") : undefined}
       />
       <ConfirmDialog

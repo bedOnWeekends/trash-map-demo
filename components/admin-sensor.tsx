@@ -153,7 +153,7 @@ export function Sensor({
                   <i
                     className="bin-level"
                     data-level={fillState(committed)}
-                    style={{ height: committed + "%" }}
+                    style={{ transform: "scaleY(" + committed / 100 + ")" }}
                   />
                 )}
                 {edit.value != null && edit.value !== committed && (

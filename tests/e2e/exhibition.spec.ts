@@ -66,6 +66,7 @@ test("여섯 배출 삽화, 설명, 경로 링크는 작은 화면과 모션 감
   await page.setViewportSize({ width: 320, height: 568 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/guide");
+  await expect(page.locator(".guide-grid button")).toHaveCount(6);
   for (const choice of await page.locator(".guide-grid button").all()) {
     await choice.click();
     const dialog = page.getByRole("dialog");

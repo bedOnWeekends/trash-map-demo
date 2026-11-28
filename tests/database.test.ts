@@ -221,3 +221,26 @@ test("도형 경계와 미세한 좌표 차이에서도 JS와 SQL 판정이 일�
     points.map((p) => zoneAt(p)?.id ?? null),
   );
 });
+
+test("방문자별 재신고 시작 시각은 만료와 세대 전환을 서버에서 확인한다", async () => {
+  const s = await snap(),
+    visitor = randomUUID();
+  const bin = s.bins.find((b) => b.waste_types.length > 1)!;
+  const [firstItem, secondItem] = bin.waste_types;
+  const report = (item: string) =>
+    write("report", { id: bin.id, item }, visitor, randomUUID(), s.epoch);
+  const first = await report(firstItem);
+  await report(secondItem);
+  assert.equal((await snap(visitor, false)).report_cooldowns?.length, 2);
+  await db.query(
+    "update booth.full_reports set created_at = now() - interval '10 minutes' where id=$1",
+    [first.id],
+  );
+  assert.deepEqual(
+    (await snap(visitor, false)).report_cooldowns?.map((r) => r.waste_type),
+    [secondItem],
+  );
+  await report(firstItem);
+  await write("reset", { confirm: true }, admin, randomUUID(), s.epoch);
+  assert.deepEqual((await snap(visitor, false)).report_cooldowns, []);
+});
