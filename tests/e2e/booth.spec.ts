@@ -695,6 +695,7 @@ test("관리자 분포 막대가 중간 너비를 거쳐 최신 개수에 도달
   generation++;
   await refresh();
   await expect(counts).toHaveText(["0", "0", "0", "1", "0"]);
-  await expect(segment).toHaveCSS("transition-duration", "0s");
+  await expect(segment).toHaveCSS("transition-property", "none");
+  expect(await segment.evaluate((el) => el.getAnimations().length)).toBe(0);
   await expect(segment).toHaveCSS("flex-grow", "1");
 });

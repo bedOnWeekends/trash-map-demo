@@ -255,3 +255,41 @@ test("누름 표면과 실제 터치 영역이 독립적이다", async ({ page }
     await expect(visual).toHaveCSS("scale", "none");
   }
 });
+
+test("드래그와 필터를 이어서 사용해도 최신 결과와 시트가 남는다", async ({
+  page,
+}) => {
+  const bins = await prepare(page);
+  const sheet = page.locator(".station-sheet");
+  const handle = sheet.locator(".sheet-handle");
+  const filters = page.locator(".quick-filters");
+  const stage = await page.locator(".map-surface").boundingBox();
+  // Finish the user's upward drag, then change the filter before the snap settles.
+  const pos = (await handle.boundingBox())!;
+  const x = pos.x + 40,
+    y = pos.y + pos.height / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x, y - 220, { steps: 5 });
+  await expect(sheet).toHaveAttribute("data-state", "dragging");
+  await page.mouse.up();
+  await filters.getByRole("button", { name: "플라스틱·PET" }).tap();
+  await expect(sheet).toHaveAttribute("data-state", "half");
+  // A second filter can reverse the content change before the next drag.
+  await filters.getByRole("button", { name: "전체", exact: true }).tap();
+  await handle.hover();
+  const current = (await handle.boundingBox())!;
+  await page.mouse.move(current.x + 40, current.y + 20);
+  await page.mouse.down();
+  await page.mouse.move(current.x + 40, current.y + 180, { steps: 6 });
+  await expect(sheet).toHaveAttribute("data-state", "dragging");
+  await page.mouse.up();
+  await expect(sheet).toHaveAttribute("data-state", "peek");
+  await expect(
+    filters.getByRole("button", { name: "전체", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await expect(sheet.locator(".station-slot:not([inert])")).toHaveCount(
+    bins.length,
+  );
+  expect(await page.locator(".map-surface").boundingBox()).toEqual(stage);
+});
