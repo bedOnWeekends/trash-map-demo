@@ -131,6 +131,13 @@ test("실제 좌표의 그룹에서 각 거점을 열고 같은 시트에서 여
   await page.getByRole("button", { name: "시트 닫기" }).click();
   await page.getByRole("searchbox").fill("5호관 음료");
   await expect(list.first()).toContainText(other.name);
+  // The explicitly selected alternative may still be panning. Start the
+  // sensor-only comparison after that independent camera operation has ended.
+  await expect(async () => {
+    const position = await cam.state();
+    await page.waitForTimeout(180);
+    expect(await cam.state()).toBe(position);
+  }).toPass({ timeout: 5000 });
   const exploring = await cam.state();
   full.fills.liquid = 0;
   other.fills.liquid = 100;
