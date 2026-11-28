@@ -204,7 +204,7 @@
   inset: -5px;
   border-radius: 50%;
 }
-.mobile-map-stage .pin.chosen {
+.mobile-map-stage .map-surface:not([data-grouping]) .pin.chosen {
   box-shadow:
     0 0 0 5px var(--color-paper-3),
     0 0 0 7px var(--kind);
