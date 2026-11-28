@@ -358,7 +358,7 @@
 .booth-metrics .rolling-number {
   min-width: 1ch;
 }
-.review .map-surface[data-grouping] .pin:focus-visible {
+:is(.review, .exhibit-map) .map-surface[data-grouping] .pin:focus-visible {
   border-radius: 50%;
   outline: 2px dashed var(--color-focus);
   outline-offset: 2px;

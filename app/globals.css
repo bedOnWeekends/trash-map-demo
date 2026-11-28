@@ -1363,6 +1363,12 @@ textarea {
 }
 
 @media (min-width: 681px) {
+  .side-action {
+    position: sticky;
+    bottom: 0;
+    flex: none;
+    background: var(--color-paper-3);
+  }
   .side-content {
     min-height: 0;
     overscroll-behavior: contain;
