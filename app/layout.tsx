@@ -3,6 +3,7 @@ import { MotionPolicy } from "@/components/motion/patterns";
 import "./globals.css";
 import "./student-mobile.css";
 import "./motion.css";
+import "./admin.css";
 export const metadata: Metadata = {
   title: {
     default: "캠퍼스 순환지도 | 인하대학교 체험 부스",

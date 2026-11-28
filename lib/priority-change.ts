@@ -8,7 +8,6 @@ export function priorityChanges(before: Snapshot, after: Snapshot) {
   for (const rank of rankings(after)) {
     const old = oldRanks.get(rank.zone.id)!;
     const delta = rank.score - old.score;
-    if (!delta) continue;
     const reasons = new Map<string, number>();
     const add = (label: string) =>
       reasons.set(label, (reasons.get(label) ?? 0) + 1);
@@ -38,6 +37,7 @@ export function priorityChanges(before: Snapshot, after: Snapshot) {
         else if (!dates.includes(day(r.created_at))) add("신고 집계 만료");
         else complete = false;
       }
+    if (!delta && complete && !reasons.size) continue;
     const summary =
       complete && reasons.size
         ? [...reasons].map(([label, n]) => label + " " + n + "건").join(", ")

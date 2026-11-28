@@ -1,13 +1,9 @@
 "use client";
 import { priorityChanges } from "@/lib/priority-change";
 import { PressButton } from "./ui/press-button";
-import { useState, useEffect } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import {
-  StatusLabel,
-  useChangeHighlight,
-  useInstalledBins,
-} from "./motion/data";
+import { StatusLabel, useChangeHighlight } from "./motion/data";
 import { AnimatedNumber } from "./motion/patterns";
 import { duration, tween } from "@/lib/motion";
 import { AnimatePresence, motion } from "motion/react";
@@ -16,41 +12,17 @@ import {
   ArrowRight,
   LogOut,
   RotateCcw,
-  MapPin,
-  Plus,
   Check,
-  Activity,
-  ChevronRight,
 } from "lucide-react";
-import {
-  Shell,
-  LoadState,
-  Notice,
-  Footer,
-  ItemPicker,
-  ItemIcon,
-  Fill,
-} from "./common";
+import { Shell, LoadState, Notice, Footer, ItemIcon } from "./common";
 import { ConfirmDialog } from "./ui/dialog";
-import CampusMap, { type Pin } from "./campus-map";
-import { binPin } from "./student-stations";
+import { type MobileCamera } from "./campus-map";
+import { type Plan, type Rank } from "@/lib/admin-workflow";
+import { ZoneReview } from "./admin-zone";
+import { Sensor, type SensorIntent } from "./admin-sensor";
+import { Statistics, Metrics } from "./admin-statistics";
 import { useBooth, type Booth } from "@/lib/use-booth";
-import {
-  items,
-  labels,
-  rankings,
-  daysThrough,
-  day,
-  fillState,
-  pending,
-  timeText,
-  zoneAt,
-  zoneName,
-  type Snapshot,
-  type Waste,
-  type Point,
-  type Zone,
-} from "@/lib/model";
+import { items, labels, rankings, zoneName, type Snapshot } from "@/lib/model";
 export function Login() {
   const router = useRouter(),
     [pin, setPin] = useState(""),
@@ -104,532 +76,29 @@ export function Login() {
     </>
   );
 }
-function Statistics({ s }: { s: Snapshot }) {
-  const values = s.bins.flatMap((b) => b.waste_types.map((t) => b.fills[t])),
-    open = s.requests.filter(pending),
-    dates = daysThrough(s.as_of),
-    levels = ["여유", "보통", "혼잡", "가득 참", "정보 없음"];
-  const trend = dates.map((date) => ({
-    date,
-    r: s.reports.filter((r) => day(r.created_at) === date).length,
-    f: s.readings.filter(
-      (r) =>
-        day(r.created_at) === date &&
-        (r.previous_percent ?? 0) < 80 &&
-        r.fill_percent >= 80,
-    ).length,
-  }));
-  const max = Math.max(1, ...trend.flatMap((t) => [t.r, t.f]));
-  return (
-    <>
-      <div className="kpis">
-        {[
-          ["수거 거점", s.bins.length, "곳"],
-          [
-            "혼잡·포화 품목",
-            values.filter((v) => v != null && v >= 80).length,
-            "개",
-          ],
-          ["미처리 건의", open.length, "건"],
-          ["미처리 구역", new Set(open.map((r) => r.zone_id)).size, "곳"],
-          ["7일 포화 신고", s.reports.length, "건"],
-        ].map(([label, v, unit]) => (
-          <div key={label}>
-            <span>{label}</span>
-            <strong>
-              <AnimatedNumber value={Number(v)} />
-              <small>{unit}</small>
-            </strong>
-          </div>
-        ))}
-      </div>
-      <section className="analytics" id="stats">
-        <div>
-          <h2>전체 적재 상태</h2>
-          <div className="distribution">
-            {levels.map((l) => (
-              <i
-                key={l}
-                data-level={l}
-                style={{
-                  flexGrow: values.filter((v) => fillState(v) === l).length,
-                }}
-              />
-            ))}
-          </div>
-          <div className="level-list">
-            {levels.map((l) => (
-              <span key={l}>
-                <i data-level={l} />
-                {l} <b>{values.filter((v) => fillState(v) === l).length}</b>
-              </span>
-            ))}
-          </div>
-        </div>
-        <div>
-          <h2>품목별 적재 현황</h2>
-          {items.map((t) => {
-            const v = s.bins
-              .filter((b) => b.waste_types.includes(t))
-              .map((b) => b.fills[t])
-              .filter((p): p is number => p != null);
-            return (
-              <div className="item-stat" key={t}>
-                <span>{labels[t]}</span>
-                <Fill
-                  value={
-                    v.length
-                      ? Math.round(v.reduce((x, y) => x + y, 0) / v.length)
-                      : null
-                  }
-                />
-              </div>
-            );
-          })}
-          <small>측정값이 있는 수거함의 평균</small>
-        </div>
-        <div>
-          <h2>최근 7일 추이</h2>
-          <div
-            className="trend"
-            aria-label="서울 날짜별 센서 포화 진입과 학생 포화 신고"
-          >
-            {trend.map((t) => (
-              <div key={t.date}>
-                <span className="bars">
-                  <i style={{ "--ratio": t.f / max } as React.CSSProperties}>
-                    {t.f}
-                  </i>
-                  <i style={{ "--ratio": t.r / max } as React.CSSProperties}>
-                    {t.r}
-                  </i>
-                </span>
-                <small>{t.date.slice(-5)}</small>
-              </div>
-            ))}
-          </div>
-          <div className="trend-key">
-            <span>센서 포화 진입</span>
-            <span>학생 포화 신고</span>
-          </div>
-        </div>
-      </section>
-    </>
-  );
-}
-function Sensor({ s, b }: { s: Snapshot; b: Booth }) {
-  const [id, select] = useState(s.bins[0]?.id ?? ""),
-    bin = s.bins.find((x) => x.id === id) ?? s.bins[0];
-  const [chosen, choose] = useState<Waste | undefined>(),
-    item = bin?.waste_types.find((t) => t === chosen) ?? bin?.waste_types[0];
-  const [draft, setDraft] = useState<number | null>(null);
-  if (!bin || !item) return null;
-  const pct = draft ?? bin.fills[item] ?? 0;
-  return (
-    <section className="panel" id="sensor">
-      <h2>
-        <Activity size={20} />
-        센서 시뮬레이터
-      </h2>
-      <form
-        onSubmit={async (e) => {
-          e.preventDefault();
-          if (
-            await b.mutate(
-              "admin/sensor",
-              { id: bin.id, item, percent: pct },
-              "센서 측정값을 적용했습니다.",
-            )
-          )
-            setDraft(null);
-        }}
-      >
-        <div className="inline-fields">
-          <label>
-            수거 거점
-            <select
-              aria-label="수거 거점"
-              value={bin.id}
-              onChange={(e) => {
-                select(e.target.value);
-                choose(undefined);
-                setDraft(null);
-              }}
-            >
-              {s.bins.map((x) => (
-                <option key={x.id} value={x.id}>
-                  {x.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            설치 품목
-            <select
-              aria-label="설치 품목"
-              value={item}
-              onChange={(e) => {
-                choose(e.target.value as Waste);
-                setDraft(null);
-              }}
-            >
-              {bin.waste_types.map((t) => (
-                <option value={t} key={t}>
-                  {labels[t]}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <div className="title-row">
-          <label htmlFor="sensor-pct">포화도 설정</label>
-          <b>{pct}%</b>
-        </div>
-        <input
-          id="sensor-pct"
-          type="range"
-          min="0"
-          max="100"
-          value={pct}
-          onChange={(e) => setDraft(Number(e.target.value))}
-        />
-        <PressButton className="primary" disabled={b.busy}>
-          측정값 적용
-        </PressButton>
-      </form>
-    </section>
-  );
-}
-type Rank = ReturnType<typeof rankings>[number];
-function ZoneReview({ rank, s, b }: { rank: Rank; s: Snapshot; b: Booth }) {
-  const { zone, requests, reports } = rank;
-  const [draft, setDraft] = useState<{ req: string[]; rep: string[] } | null>(
-      null,
-    ),
-    [candidate, locate] = useState<Point | null>(null),
-    [name, setName] = useState(""),
-    [types, choose] = useState<Waste[]>([]),
-    [detail, setDetail] = useState(""),
-    [confirm, setConfirm] = useState(false);
-  const groups = new Map<string, typeof requests>();
-  requests.forEach((r) => {
-    const k = r.lat + "," + r.lng;
-    groups.set(k, [...(groups.get(k) ?? []), r]);
-  });
-  const fresh = useInstalledBins(s.bins, s.epoch);
-  const pins: Pin[] = s.bins
-    .filter((x) => x.zone_id === zone.id)
-    .map((x) => ({
-      ...binPin(x),
-      fresh: fresh.has(x.id),
-      warning: reports.filter((r) => r.bin_id === x.id).length,
-    }));
-  groups.forEach((rows, k) =>
-    pins.push({
-      ...rows[0],
-      id: k,
-      kind: "request",
-      name: "설치 건의 " + rows.length + "건",
-      count: rows.length,
-    }),
-  );
-  if (candidate)
-    pins.push({
-      ...candidate,
-      id: "candidate",
-      kind: "candidate",
-      name: "설치 후보",
-    });
-  const pick = (p: Point) => {
-    if (!draft) return;
-    if (zoneAt(p)?.id !== zone.id) {
-      b.notify("선택한 관리 구역 안에서 설치 위치를 지정해 주세요.");
-      return;
-    }
-    locate(p);
-  };
-  const chooseZone = (z: Zone) => pick({ lat: z.lat, lng: z.lng });
-  const start = () => {
-    setDraft({ req: requests.map((x) => x.id), rep: reports.map((x) => x.id) });
-    locate(null);
-    setName("");
-    choose([]);
-  };
-  const shown = groups.get(detail),
-    bin = s.bins.find((x) => x.id === detail),
-    hist = reports.filter((x) => x.bin_id === detail);
-  const toggle = (k: "req" | "rep", id: string) => {
-    if (!draft) return;
-    setDraft({
-      ...draft,
-      [k]: draft[k].includes(id)
-        ? draft[k].filter((v) => v !== id)
-        : [...draft[k], id],
-    });
-  };
-  // Capture the offers when siting starts. Live arrivals appear on the map but never enter this approval implicitly.
-  const [offers, setOffers] = useState<{
-    requests: typeof requests;
-    reports: typeof reports;
-  }>({ requests: [], reports: [] });
-  return (
-    <section id="management" className="panel review">
-      <div className="title-row">
-        <h2>
-          <MapPin size={19} />
-          {zone.name} 관리 구역
-        </h2>
-        {!draft && (
-          <PressButton
-            className="primary"
-            disabled={!requests.length && !reports.length}
-            onClick={() => {
-              start();
-              setOffers({ requests: [...requests], reports: [...reports] });
-            }}
-          >
-            <Plus size={16} />
-            설치 위치 지정
-          </PressButton>
-        )}
-      </div>
-      <CampusMap
-        pins={pins}
-        zone={zone}
-        picking={!!draft}
-        selected={detail}
-        onPick={pick}
-        onSelect={(p) => setDetail(p.id)}
-      />
-      {shown && (
-        <div className="inspection">
-          <h3>이 위치의 건의 {shown.length}건</h3>
-          {shown.map((r) => (
-            <p key={r.id}>
-              <strong>
-                {r.requested_waste_types.map((t) => labels[t]).join(", ")}
-              </strong>{" "}
-              / {r.reason} / {timeText(r.created_at)}
-            </p>
-          ))}
-        </div>
-      )}
-      {bin && (
-        <div className="inspection">
-          <h3>{bin.name}</h3>
-          {hist.length ? (
-            hist.map((r) => (
-              <p key={r.id}>
-                {labels[r.waste_type]} 가득 참 신고 / {timeText(r.created_at)}
-              </p>
-            ))
-          ) : (
-            <p>미반영 포화 신고가 없습니다.</p>
-          )}
-        </div>
-      )}
-      {draft && (
-        <form
-          className="approval-form"
-          onSubmit={(e) => {
-            e.preventDefault();
-            setConfirm(true);
-          }}
-        >
-          <h3>새 거점 설치안</h3>
-          <p>지도에서 이 구역 안의 위치를 누르거나 건물 중심을 선택하세요.</p>
-          <button type="button" onClick={() => chooseZone(zone)}>
-            가상 위치로 건물 중심 선택
-          </button>
-          <p className="position">
-            {candidate
-              ? candidate.lat.toFixed(6) + ", " + candidate.lng.toFixed(6)
-              : "설치 위치 미지정"}
-          </p>
-          <label>
-            신규 거점명
-            <input
-              required
-              maxLength={60}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </label>
-          <ItemPicker value={types} onChange={choose} />
-          <fieldset>
-            <legend>이번 승인에 반영할 건의·신고</legend>
-            {offers.requests.map((r) => (
-              <label className="checkline" key={r.id}>
-                <input
-                  type="checkbox"
-                  checked={draft.req.includes(r.id)}
-                  onChange={() => toggle("req", r.id)}
-                />
-                건의 / {r.reason} / {timeText(r.created_at)}
-              </label>
-            ))}
-            {offers.reports.map((r) => (
-              <label className="checkline" key={r.id}>
-                <input
-                  type="checkbox"
-                  checked={draft.rep.includes(r.id)}
-                  onChange={() => toggle("rep", r.id)}
-                />
-                신고 / {labels[r.waste_type]} / {timeText(r.created_at)}
-              </label>
-            ))}
-          </fieldset>
-          <div className="actions">
-            <PressButton
-              type="button"
-              onClick={() => {
-                setDraft(null);
-                locate(null);
-              }}
-            >
-              취소
-            </PressButton>
-            <PressButton
-              className="primary"
-              disabled={
-                !candidate ||
-                !name.trim() ||
-                !types.length ||
-                (!draft.req.length && !draft.rep.length) ||
-                b.busy
-              }
-            >
-              승인 대상 확인
-            </PressButton>
-          </div>
-        </form>
-      )}
-      <ConfirmDialog
-        open={confirm}
-        onOpenChange={setConfirm}
-        title="설치를 승인할까요?"
-        description={
-          name +
-          " / 건의 " +
-          (draft?.req.length ?? 0) +
-          "건과 신고 " +
-          (draft?.rep.length ?? 0) +
-          "건을 이번 설치안에 반영합니다."
-        }
-      >
-        <PressButton
-          className="primary"
-          disabled={b.busy}
-          onClick={async () => {
-            if (!draft || !candidate) return;
-            const ok = await b.mutate(
-              "admin/approve",
-              {
-                ...candidate,
-                zone: zone.id,
-                name,
-                types,
-                requestIds: draft.req,
-                reportIds: draft.rep,
-              },
-              "설치 예정으로 등록했습니다.",
-            );
-            setConfirm(false);
-            if (ok) {
-              setDraft(null);
-              locate(null);
-            }
-          }}
-        >
-          설치 승인
-        </PressButton>
-      </ConfirmDialog>
-      {!draft && requests.length > 0 && (
-        <details className="queue">
-          <summary>건의 검토 및 반려 ({requests.length})</summary>
-          <AnimatePresence initial={false}>
-            {requests.map((r) => (
-              <motion.div
-                className="queue-row"
-                key={r.id}
-                layout="position"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-              >
-                <div>
-                  <strong>{r.reason}</strong>
-                  <small>
-                    {r.requested_waste_types.map((t) => labels[t]).join(", ")} /{" "}
-                    {timeText(r.created_at)}
-                  </small>
-                </div>
-                <div>
-                  {r.status === "pending" && (
-                    <PressButton
-                      disabled={b.busy}
-                      onClick={() =>
-                        b.mutate(
-                          "admin/review",
-                          { id: r.id },
-                          "검토 중으로 변경했습니다.",
-                        )
-                      }
-                    >
-                      검토 시작
-                    </PressButton>
-                  )}
-                  <PressButton
-                    disabled={b.busy}
-                    onClick={() =>
-                      b.mutate(
-                        "admin/reject",
-                        { id: r.id },
-                        "건의를 반려했습니다.",
-                      )
-                    }
-                  >
-                    반려
-                  </PressButton>
-                </div>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </details>
-      )}
-    </section>
-  );
-}
-function RankReason({ text }: { text: string }) {
-  const [visible, show] = useState(true);
-  useEffect(() => {
-    const timer = setTimeout(() => show(false), 7000);
-    return () => clearTimeout(timer);
-  }, []);
-  return visible ? <span>{text}</span> : null;
-}
 function RankRow({
   r,
   position,
   reason,
   selected,
+  drafting,
   select,
 }: {
   r: Rank;
   position: number;
   reason?: { text: string; revision: number };
   selected: boolean;
+  drafting: boolean;
   select: () => void;
 }) {
-  const ref = useChangeHighlight<HTMLButtonElement>(
-    [position, r.score, r.requests.length, r.reports.length].join("/"),
-  );
+  const ref = useChangeHighlight<HTMLButtonElement>(reason?.revision ?? 0);
   return (
     <motion.button
       layout="position"
       transition={tween(duration.layout)}
       ref={ref}
 
+      data-zone-id={r.zone.id}
       aria-pressed={selected}
       className="rank-row"
       onClick={select}
@@ -637,6 +106,8 @@ function RankRow({
       <span>
         <small>{position}</small>
         {r.zone.name}
+        {drafting && <em>작성 중</em>}
+        {reason && <span className="rank-explanation">{reason.text}</span>}
       </span>
       <span>
         <AnimatedNumber value={r.requests.length} />
@@ -647,9 +118,6 @@ function RankRow({
       <b>
         <AnimatedNumber value={r.score} />
       </b>
-      <span className="rank-explanation">
-        {reason && <RankReason key={reason.revision} text={reason.text} />}
-      </span>
     </motion.button>
   );
 }
@@ -658,6 +126,10 @@ function Dashboard({ b, s }: { b: Booth; s: Snapshot }) {
   const [explanations, setExplanations] = useState(
     new Map<string, { text: string; revision: number }>(),
   );
+  const [recent, setRecent] = useState<string[]>([]);
+  const [plans, setPlans] = useState<Record<string, Plan | undefined>>({});
+  const [target, setTarget] = useState<SensorIntent | null>(null);
+  const camera = useRef<MobileCamera>(null);
   if (previous !== s) {
     remember(s);
     const changes = priorityChanges(previous, s);
@@ -669,6 +141,7 @@ function Dashboard({ b, s }: { b: Booth; s: Snapshot }) {
           text,
           revision: (updated.get(id)?.revision ?? 0) + 1,
         });
+      setRecent([...changes].map(([id, text]) => zoneName(id) + " · " + text));
       setExplanations(updated);
     }
   }
@@ -678,7 +151,13 @@ function Dashboard({ b, s }: { b: Booth; s: Snapshot }) {
     [reset, setReset] = useState(false);
   return (
     <>
-      <Statistics s={s} />
+      <Metrics s={s} ranks={ranks} />
+      <div className="recent-change">
+        <strong>최근 변화</strong>
+        <span aria-live="polite">
+          {recent.join(" / ") || "새로 확인된 변화가 없습니다."}
+        </span>
+      </div>
       <div className="admin-grid">
         <section className="panel priority">
           <h2>건물별 설치 우선순위</h2>
@@ -696,7 +175,14 @@ function Dashboard({ b, s }: { b: Booth; s: Snapshot }) {
               reason={explanations.get(r.zone.id)}
               position={i + 1}
               selected={r.zone.id === id}
-              select={() => setId(r.zone.id)}
+              drafting={!!plans[r.zone.id]}
+              select={() => {
+                setId(r.zone.id);
+                const rect = document
+                  .querySelector("#management .map-surface")
+                  ?.getBoundingClientRect();
+                if (rect) camera.current?.reveal(r.zone, rect);
+              }}
             />
           ))}
           <details className="queue">
@@ -720,10 +206,37 @@ function Dashboard({ b, s }: { b: Booth; s: Snapshot }) {
             ))}
           </details>
         </section>
-        <ZoneReview key={id} rank={rank} s={s} b={b} />
+        <ZoneReview
+          rank={rank}
+          s={s}
+          b={b}
+          camera={camera}
+          plan={plans[id]}
+          save={(plan) => setPlans((prev) => ({ ...prev, [id]: plan }))}
+          onSensor={(intent) => {
+            if (
+              !s.bins
+                .find((x) => x.id === intent.binId)
+                ?.waste_types.includes(intent.item)
+            ) {
+              b.notify("거점 또는 품목을 다시 확인해 주세요.");
+              return;
+            }
+            setTarget(intent);
+            const heading = document.querySelector<HTMLElement>("#sensor h2");
+            heading?.focus({ preventScroll: true });
+            heading?.scrollIntoView({
+              block: "nearest",
+              behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
+                ? "instant"
+                : "smooth",
+            });
+          }}
+        />
       </div>
+      <Statistics s={s} />
       <div className="admin-grid lower">
-        <Sensor s={s} b={b} />
+        <Sensor s={s} b={b} target={target} select={setTarget} />
         <section className="panel">
           <h2>설치 승인 및 완료</h2>
           {!s.batches.length && (
@@ -805,10 +318,9 @@ export default function Admin() {
   return (
     <>
       <Shell admin />
-      <main className="workspace">
+      <main className="workspace admin-workspace">
         <div className="page-heading">
           <div>
-            <div className="location">체험 부스 운영</div>
             <h1>관리자 대시보드</h1>
           </div>
           <div className="actions">
@@ -827,13 +339,6 @@ export default function Admin() {
               로그아웃
             </PressButton>
           </div>
-        </div>
-        <div className="admin-links">
-          <a href="#stats">적재 통계</a>
-          <ChevronRight size={12} />
-          <a href="#management">구역 관리</a>
-          <ChevronRight size={12} />
-          <a href="#sensor">센서 설정</a>
         </div>
         {(!b.data || b.error) && (
           <LoadState error={b.error} retry={b.refresh} />

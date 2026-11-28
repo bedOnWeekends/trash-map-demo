@@ -136,7 +136,7 @@ test("세 독립 브라우저에서 신고, 위치 지정, 설치, 실시간 및
     await c.getByRole("button", { name: "설치 위치 지정" }).click();
     await c.getByRole("button", { name: "가상 위치로 건물 중심 선택" }).click();
     await c.getByLabel("신규 거점명").fill("새 음료 거점");
-    await c.getByRole("button", { name: "남은 음료", exact: true }).click();
+    await expect(c.getByRole("button", { name: "남은 음료", exact: true })).toHaveAttribute("aria-pressed", "true");
     const late = await write(b, "requests", epoch, {
       ...proposal,
       reason: "승인 대상 확인 이후",

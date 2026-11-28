@@ -191,17 +191,19 @@ function PinControl({
   selected,
   onSelect,
   members,
-  student,
+  grouped,
+  admin,
 }: {
   members?: Pin[];
-  student: boolean;
+  grouped: boolean;
+  admin: boolean;
   p: Pin;
   selected?: string;
   onSelect: (p: Pin) => void;
 }) {
   const present = useIsPresent();
   const chosen = p.id === selected || !!members?.some((m) => m.id === selected);
-  const label = members ? "수거 거점 " + members.length + "곳 선택" : p.name;
+  const label = members ? (admin ? "지도 항목 " : "수거 거점 ") + members.length + (admin ? "개 선택" : "곳 선택") : p.name;
   return (
     <button
       type="button"
@@ -221,10 +223,10 @@ function PinControl({
         onSelect(p);
       }}
     >
-      {student ? (
+      {grouped ? (
         <span className="marker-face" key={chosen ? selected : "idle"}>
           {members ? (
-            <strong>{members.length}곳</strong>
+            <strong>{members.length}{admin ? "개" : "곳"}</strong>
           ) : (
             <ItemIcon kind={p.kind} size={20} />
           )}
@@ -448,7 +450,7 @@ export default function CampusMap({
     const colors = getComputedStyle(host.current);
     const regions =
       showZones === "admin" ? zones : pickedZone ? [pickedZone] : [];
-    const activeZone = showZones === "admin" ? zone : pickedZone;
+    const activeZone = pickedZone ?? zone;
     const layers = regions.map(
       (z) =>
         new kakao.maps.Polygon({
@@ -717,7 +719,8 @@ export default function CampusMap({
   const pinButton = (pin: Pin) => (
     <PinControl
       p={pin}
-      student={!!groupContent}
+      grouped={!!groupContent}
+      admin={showZones === "admin"}
       members={members.get(pin.id)}
       selected={selected}
       onSelect={(p) => {
