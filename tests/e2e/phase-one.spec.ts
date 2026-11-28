@@ -377,3 +377,49 @@ test("화면 축척이 바뀌면 세 거점 중 겹치지 않는 핀만 분리�
   await expect(page.getByLabel("가상 위치 선택")).toHaveValue("main");
   await expect(page.locator(".pin.kind-candidate")).toHaveCount(1);
 });
+
+for (const width of [390, 1366]) {
+  for (const grouped of [false, true]) {
+    test(`핀 선택 테두리 · ${width}px · ${grouped ? "그룹" : "개별"}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: width === 390 ? 844 : 768 });
+      const { full, far } = await setup(page);
+      const bin = grouped ? full : far;
+      const pin = page.locator(`.pin[data-bin-ids~="${bin.id}"]:not([inert])`);
+      const face = pin.locator(".marker-face");
+      const blueRing = "rgb(0, 91, 172) solid 3px";
+      await expect(pin).toHaveCount(1);
+      expect((await pin.getAttribute("data-group-size")) !== null).toBe(
+        grouped,
+      );
+      await expect(pin).toHaveCSS("box-shadow", "none");
+      await expect(face).toHaveCSS("outline-style", "none");
+      const fill = await face.evaluate(
+        (el) => getComputedStyle(el).backgroundColor,
+      );
+
+      await page.keyboard.press("Tab");
+      await pin.focus();
+      await expect(pin).toBeFocused();
+      await expect(face).toHaveCSS("outline", blueRing);
+      if (width === 390) await pin.tap();
+      else await page.keyboard.press("Enter");
+      if (grouped)
+        await page
+          .getByRole("dialog")
+          .getByRole("button", { name: new RegExp(bin.name) })
+          .click();
+
+      await expect(pin).toHaveAttribute("data-selected-bin", bin.id);
+      await expect(pin).toHaveCSS("box-shadow", "none");
+      await expect(pin).toHaveCSS("outline-width", "0px");
+      await expect(pin).toHaveCSS("width", "48px");
+      await expect(pin).toHaveCSS("height", "48px");
+      await expect(face).toHaveCSS("outline", blueRing);
+      await expect(face).toHaveCSS("background-color", fill);
+      await expect(face).toHaveCSS("animation-name", "marker-select");
+      await expect(face).toHaveCSS("animation-iteration-count", "1");
+    });
+  }
+}
