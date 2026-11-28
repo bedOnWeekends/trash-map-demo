@@ -281,14 +281,53 @@ test("화면 축척이 바뀌면 세 거점 중 겹치지 않는 핀만 분리�
       return r.x + r.width / 2;
     });
   }
-  const a = await anchor(full.name, full.id);
-  const b = await anchor(other.name, other.id);
-  expect(Math.abs(b - a)).toBeGreaterThan(0);
-  other.lng = full.lng + ((other.lng - full.lng) * 40) / Math.abs(b - a);
-  s.bins[2].lng = other.lng;
+  if (live) {
+    // Use the real SDK inverse projection so the test geometry is independent
+    // of the overview level and transient CSS entrance transforms.
+    const observed = await page.evaluateHandle(() => {
+      const ref: { map?: kakao.maps.Map } = {};
+      const proto = kakao.maps.Map.prototype,
+        project = proto.getProjection;
+      proto.getProjection = function () {
+        proto.getProjection = project;
+        ref.map = this;
+        return project.call(this);
+      };
+      return ref;
+    });
+    await input.fill(full.name);
+    await expect.poll(() => observed.evaluate((ref) => !!ref.map)).toBe(true);
+    const point = await observed.evaluate(
+      (ref, origin) => {
+        const projection = ref.map!.getProjection();
+        const p = projection.containerPointFromCoords(
+          new kakao.maps.LatLng(origin.lat, origin.lng),
+        );
+        const other = projection.coordsFromContainerPoint(
+          new kakao.maps.Point(p.x + 32, p.y),
+        );
+        return { lat: other.getLat(), lng: other.getLng() };
+      },
+      { lat: full.lat, lng: full.lng },
+    );
+    Object.assign(other, point);
+  } else {
+    const a = await anchor(full.name, full.id);
+    const b = await anchor(other.name, other.id);
+    expect(Math.abs(b - a)).toBeGreaterThan(0);
+    other.lng = full.lng + ((other.lng - full.lng) * 40) / Math.abs(b - a);
+  }
+  Object.assign(s.bins[2], {
+    lat: other.lat,
+    lng: other.lng,
+    name: "유리 거점 위치 확인",
+  });
   s.version++;
   await page.evaluate(() => window.dispatchEvent(new Event("online")));
   await input.fill("");
+  await expect(page.locator(".station-sheet .stations")).toContainText(
+    s.bins[2].name,
+  );
   await input.blur();
   const group = marker(full.id);
   await expect(group).toHaveAttribute("data-group-size", "3");
