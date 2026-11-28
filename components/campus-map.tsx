@@ -576,7 +576,7 @@ export default function CampusMap({
       <div
         className="kakao"
         ref={host}
-        style={{ visibility: map ? "visible" : "hidden" }}
+        style={{ visibility: map ? undefined : "hidden" }}
       />
       {!map && (
         <div
