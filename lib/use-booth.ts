@@ -28,6 +28,7 @@ export function useBooth(admin = false, enabled = true) {
     writing = useRef(false),
     retry = useRef<{ body: string; key: string } | null>(null),
     last = useRef(0);
+  const latest = useRef<Snapshot | null>(null);
   const refresh = useCallback(async () => {
     const seq = ++last.current;
     try {
@@ -37,18 +38,22 @@ export function useBooth(admin = false, enabled = true) {
       const json = await res.json();
       if (!res.ok) throw Error(json.error);
       if (active.current) {
-        setData((prev) =>
+        const prev = latest.current;
+        if (
           !prev ||
           json.version > prev.version ||
           (json.version === prev.version && json.as_of >= prev.as_of)
-            ? json
-            : prev,
-        );
+        ) {
+          latest.current = json as Snapshot;
+          setData(latest.current);
+        }
         if (seq === last.current) setError("");
       }
+      return active.current ? latest.current : null;
     } catch (e) {
       if (active.current && seq === last.current)
         setError(e instanceof Error ? e.message : "연결을 확인해 주세요.");
+      return null;
     }
   }, [admin]);
   useEffect(() => {
@@ -128,6 +133,7 @@ export function useBooth(admin = false, enabled = true) {
     path: string,
     payload: Record<string, unknown>,
     success: string,
+    onRead?: (snapshot: Snapshot | null) => void,
   ) => {
     if (!data || writing.current) return false;
     writing.current = true;
@@ -148,8 +154,9 @@ export function useBooth(admin = false, enabled = true) {
         throw Error(json.error);
       }
       retry.current = null;
-      notify(success, "success", path === "requests");
-      await refresh();
+      if (success) notify(success, "success", path === "requests");
+      const updated = await refresh();
+      onRead?.(updated);
       return true;
     } catch (e) {
       notify(

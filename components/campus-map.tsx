@@ -158,11 +158,13 @@ function KakaoOverlay({
   map,
   pin,
   active,
+  passiveCandidate,
   children,
 }: {
   map: kakao.maps.Map;
   pin: Pin;
   active: boolean;
+  passiveCandidate: boolean;
   children: ReactNode;
 }) {
   const [el] = useState(() => document.createElement("div"));
@@ -172,18 +174,18 @@ function KakaoOverlay({
       map,
       position: new kakao.maps.LatLng(pin.lat, pin.lng),
       content: el,
-      clickable: true,
+      clickable: !passiveCandidate,
       yAnchor: 1,
       zIndex: 3,
     });
     overlayRef.current = overlay;
     return () => overlay.setMap(null);
-  }, [map, el, pin.lat, pin.lng]);
+  }, [map, el, pin.lat, pin.lng, passiveCandidate]);
   useEffect(() => {
     overlayRef.current?.setZIndex(
-      active ? 10 : pin.kind === "candidate" ? 8 : 3,
+      active ? 10 : passiveCandidate ? 2 : pin.kind === "candidate" ? 8 : 3,
     );
-  }, [active, pin.kind, pin.lat, pin.lng, map]);
+  }, [active, pin.kind, pin.lat, pin.lng, map, passiveCandidate]);
   return createPortal(children, el);
 }
 function PinControl({
@@ -191,21 +193,27 @@ function PinControl({
   selected,
   onSelect,
   members,
-  student,
+  grouped,
+  admin,
 }: {
   members?: Pin[];
-  student: boolean;
+  grouped: boolean;
+  admin: boolean;
   p: Pin;
   selected?: string;
   onSelect: (p: Pin) => void;
 }) {
   const present = useIsPresent();
   const chosen = p.id === selected || !!members?.some((m) => m.id === selected);
-  const label = members ? "수거 거점 " + members.length + "곳 선택" : p.name;
+  const label = members
+    ? (admin ? "지도 항목 " : "수거 거점 ") +
+      members.length +
+      (admin ? "개 선택" : "곳 선택")
+    : p.name;
   return (
     <button
       type="button"
-      inert={!present}
+      inert={!present || (admin && grouped && p.kind === "candidate")}
       aria-hidden={!present || undefined}
       title={label}
       data-new-installation={p.fresh || undefined}
@@ -221,10 +229,13 @@ function PinControl({
         onSelect(p);
       }}
     >
-      {student ? (
+      {grouped ? (
         <span className="marker-face" key={chosen ? selected : "idle"}>
           {members ? (
-            <strong>{members.length}곳</strong>
+            <strong>
+              {members.length}
+              {admin ? "개" : "곳"}
+            </strong>
           ) : (
             <ItemIcon kind={p.kind} size={20} />
           )}
@@ -448,7 +459,7 @@ export default function CampusMap({
     const colors = getComputedStyle(host.current);
     const regions =
       showZones === "admin" ? zones : pickedZone ? [pickedZone] : [];
-    const activeZone = showZones === "admin" ? zone : pickedZone;
+    const activeZone = pickedZone ?? zone;
     const layers = regions.map(
       (z) =>
         new kakao.maps.Polygon({
@@ -519,7 +530,7 @@ export default function CampusMap({
     };
   };
   const labelOffsets =
-    mobile && wide && !map
+    ((mobile && wide) || (showZones === "admin" && size.w < 520)) && !map
       ? landscapeLabels((p) => {
           const [x, y] = xy(p.lng, p.lat);
           return { x: (x - ox) * factor, y: (y - oy) * factor };
@@ -601,7 +612,15 @@ export default function CampusMap({
         ...groups.map((g) =>
           g.members.length === 1
             ? g.anchor
-            : { ...g.anchor, id: g.id, fresh: g.members.some((p) => p.fresh) },
+            : {
+                ...g.anchor,
+                id: g.id,
+                fresh: g.members.some((p) => p.fresh),
+                warning: g.members.reduce(
+                  (n, member) => n + (member.warning ?? 0),
+                  0,
+                ),
+              },
         ),
         ...pins.filter((p) => p.kind === "candidate"),
       ]
@@ -717,7 +736,8 @@ export default function CampusMap({
   const pinButton = (pin: Pin) => (
     <PinControl
       p={pin}
-      student={!!groupContent}
+      grouped={!!groupContent}
+      admin={showZones === "admin"}
       members={members.get(pin.id)}
       selected={selected}
       onSelect={(p) => {
@@ -958,6 +978,9 @@ export default function CampusMap({
               key={p.id}
               map={map}
               pin={p}
+              passiveCandidate={
+                showZones === "admin" && grouping && p.kind === "candidate"
+              }
               active={
                 p.id === selected ||
                 !!members.get(p.id)?.some((m) => m.id === selected)

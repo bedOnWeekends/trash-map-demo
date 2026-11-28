@@ -850,36 +850,6 @@
   color: var(--color-accent);
   font-size: 12px;
 }
-.rank-explanation span {
-  display: block;
-  animation: rank-reason 7s linear forwards;
-}
-@keyframes rank-reason {
-  0% {
-    opacity: 0;
-  }
-  4%,
-  94% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .rank-explanation span {
-    animation-timing-function: steps(1, end);
-    animation-name: reason-timeout;
-  }
-}
-@keyframes reason-timeout {
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-  }
-}
 @media (prefers-reduced-motion: no-preference) {
   .item-detail[data-preferred],
   .station[data-opening],

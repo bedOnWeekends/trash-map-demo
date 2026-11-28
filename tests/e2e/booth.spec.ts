@@ -73,6 +73,13 @@ test("세 독립 브라우저에서 신고, 위치 지정, 설치, 실시간 및
     const rank = async () =>
       rankings(await snap(c, true)).find((x) => x.zone.id === "five")!.score;
     const score = await rank();
+    await c.locator('[data-zone-id="main"]').click();
+    const adminMap = await c
+      .locator("#management .map-surface")
+      .elementHandle();
+    const adminCamera = await c
+      .locator("#management .basemap")
+      .getAttribute("viewBox");
     await a.getByRole("button", { name: "남은 음료", exact: true }).click();
     await a.locator(".station").filter({ hasText: mixed.name }).click();
     await expect(a.locator(".item-detail")).toHaveCount(
@@ -114,6 +121,17 @@ test("세 독립 브라우저에서 신고, 위치 지정, 설치, 실시간 및
         .filter({ hasText: "설치 건의 접수" })
         .first(),
     ).toBeVisible();
+    await expect(c.locator('.rank-row[aria-pressed="true"]')).toContainText(
+      "본관",
+    );
+    expect(
+      await adminMap!.evaluate(
+        (el) => el === document.querySelector("#management .map-surface"),
+      ),
+    ).toBe(true);
+    expect(
+      await c.locator("#management .basemap").getAttribute("viewBox"),
+    ).toBe(adminCamera);
     const proposal = {
       lat: five.lat + 0.00004,
       lng: five.lng,
@@ -136,7 +154,9 @@ test("세 독립 브라우저에서 신고, 위치 지정, 설치, 실시간 및
     await c.getByRole("button", { name: "설치 위치 지정" }).click();
     await c.getByRole("button", { name: "가상 위치로 건물 중심 선택" }).click();
     await c.getByLabel("신규 거점명").fill("새 음료 거점");
-    await c.getByRole("button", { name: "남은 음료", exact: true }).click();
+    await expect(
+      c.getByRole("button", { name: "남은 음료", exact: true }),
+    ).toHaveAttribute("aria-pressed", "true");
     const late = await write(b, "requests", epoch, {
       ...proposal,
       reason: "승인 대상 확인 이후",
@@ -148,6 +168,7 @@ test("세 독립 브라우저에서 신고, 위치 지정, 설치, 실시간 및
     expect((await snap(a)).bins.length).toBe(8);
     expect(await rank()).toBe(3);
     await c.getByRole("button", { name: "설치 완료", exact: true }).click();
+    await expect(c.getByText("신규 거점을 설치했습니다.")).toBeVisible();
     const installed = await snap(c, true),
       newBin = installed.bins.find((x) => x.name === "새 음료 거점")!;
     const marker = '.pin[data-bin-ids~="' + newBin.id + '"]:not([inert])';
