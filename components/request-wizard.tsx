@@ -239,6 +239,11 @@ export function RequestWizard({
           {notice}
         </div>
         <div className="wizard-actions">
+          {step === 1 && zone && (
+            <span className="location-confirmed" key={zone.id}>
+              <Check size={15} /> 위치 선택됨
+            </span>
+          )}
           {step > 1 && (
             <PressButton
               type="button"

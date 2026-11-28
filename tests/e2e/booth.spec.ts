@@ -101,12 +101,19 @@ test("세 독립 브라우저에서 신고, 위치 지정, 설치, 실시간 및
     await a.getByRole("button", { name: "추가 설치 건의" }).click();
     await a.getByLabel("가상 위치 선택").selectOption("five");
     await a.getByRole("button", { name: "종이", exact: true }).click();
-    await expect(a.getByRole("button", { name: "남은 음료", exact: true })).toHaveAttribute("aria-pressed","true");
+    await expect(
+      a.getByRole("button", { name: "남은 음료", exact: true }),
+    ).toHaveAttribute("aria-pressed", "true");
     await a.getByLabel("건의 사유").fill("부스 공개 시연");
     await a.getByRole("button", { name: "건의 제출" }).click();
     await expect(a.getByRole("status")).toContainText("설치 건의를 접수했어요");
     expect(await rank()).toBe(score + 5);
-    await expect(c.locator(".rank-explanation").filter({hasText:"설치 건의 접수"}).first()).toBeVisible();
+    await expect(
+      c
+        .locator(".rank-explanation")
+        .filter({ hasText: "설치 건의 접수" })
+        .first(),
+    ).toBeVisible();
     const proposal = {
       lat: five.lat + 0.00004,
       lng: five.lng,
@@ -141,14 +148,11 @@ test("세 독립 브라우저에서 신고, 위치 지정, 설치, 실시간 및
     expect((await snap(a)).bins.length).toBe(8);
     expect(await rank()).toBe(3);
     await c.getByRole("button", { name: "설치 완료", exact: true }).click();
-    await expect(
-      a.getByRole("button", { name: "새 음료 거점", exact: true }),
-    ).toBeVisible();
-    await expect(
-      b.getByRole("button", { name: "새 음료 거점", exact: true }),
-    ).toBeVisible();
     const installed = await snap(c, true),
       newBin = installed.bins.find((x) => x.name === "새 음료 거점")!;
+    const marker = '.pin[data-bin-ids~="' + newBin.id + '"]:not([inert])';
+    await expect(a.locator(marker)).toBeVisible();
+    await expect(b.locator(marker)).toBeVisible();
     expect(newBin.fills.liquid).toBe(0);
     expect(
       (
@@ -164,16 +168,20 @@ test("세 독립 브라우저에서 신고, 위치 지정, 설치, 실시간 및
     await expect(a.getByText("설치 완료").first()).toBeVisible();
     await a.reload();
     await expect(a.getByText("부스 공개 시연")).toBeVisible();
-    const completed=(await snap(a)).requests.find(r=>r.reason==="부스 공개 시연")!;
+    const completed = (await snap(a)).requests.find(
+      (r) => r.reason === "부스 공개 시연",
+    )!;
     expect(completed.installed_bin_id).toBe(newBin.id);
-    await a.setViewportSize({width:390,height:844});
-    const entry=a.locator(".request-entry").filter({hasText:"부스 공개 시연"});
+    await a.setViewportSize({ width: 390, height: 844 });
+    const entry = a
+      .locator(".request-entry")
+      .filter({ hasText: "부스 공개 시연" });
     await entry.locator("summary").click();
-    await entry.getByRole("link",{name:"설치된 수거함 보기"}).click();
+    await entry.getByRole("link", { name: "설치된 수거함 보기" }).click();
     await expect(a.locator(".sheet-label")).toHaveText(newBin.name);
-    await expect(a.getByRole("button",{name:newBin.name,exact:true})).toHaveAttribute("aria-pressed","true");
-    await a.setViewportSize({width:1320,height:900});
-    await a.goto(base+"/requests");
+    await expect(a.locator(marker)).toHaveAttribute("aria-pressed", "true");
+    await a.setViewportSize({ width: 1320, height: 900 });
+    await a.goto(base + "/requests");
     // Exercise a report-only zone and a candidate offset from the reporting bin.
     const tech = rankings(installed).find((x) => x.zone.id === "tech")!;
     expect(tech.requests.length).toBe(0);
@@ -207,9 +215,7 @@ test("세 독립 브라우저에서 신고, 위치 지정, 설치, 실시간 및
     await c.getByRole("button", { name: "전체 데이터 초기화" }).click();
     await expect(a.getByText("아직 접수한 건의가 없어요")).toBeVisible();
     await contexts[1].setOffline(false);
-    await expect(
-      b.getByRole("button", { name: "새 음료 거점", exact: true }),
-    ).toHaveCount(0);
+    await expect(b.locator(marker)).toHaveCount(0);
     expect((await write(a, "requests", epoch, proposal)).status()).toBe(409);
     expect(
       (
@@ -583,9 +589,20 @@ test("터치 지도 제스처, 직접 위치 지정, 안전 영역과 가로 시
     await page.touchscreen.tap(point.x, point.y);
     await expect(page.getByLabel("가상 위치 선택")).toHaveValue("main");
     await expect(svg).toHaveAttribute("viewBox", viewPicking!);
-    await page
-      .getByRole("button", { name: "5호관 남은 음료 수거함", exact: true })
-      .tap();
+    const target = (await snap(page)).bins.find(
+      (b) => b.name === "5호관 남은 음료 수거함",
+    )!;
+    const marker = page.locator(
+      '.pin[data-bin-ids~="' + target.id + '"]:not([inert])',
+    );
+    await marker.tap();
+    if (await marker.getAttribute("data-group-size")) {
+      await expect(page.getByLabel("가상 위치 선택")).toHaveValue("main");
+      await page
+        .getByRole("dialog")
+        .getByRole("button", { name: new RegExp(target.name) })
+        .tap();
+    }
     await expect(page.getByLabel("가상 위치 선택")).toHaveValue("five");
     await expect(svg).toHaveAttribute("viewBox", viewPicking!);
     await expect(page.getByRole("button", { name: "다음" })).toBeEnabled();
@@ -623,12 +640,30 @@ test("터치 지도 제스처, 직접 위치 지정, 안전 영역과 가로 시
     await page.setViewportSize({ width: 844, height: 390 });
     await page.getByRole("button", { name: "목록 펼치기" }).click();
     const handle = page.locator(".sheet-handle");
-    await handle.hover();
-    const h = await handle.boundingBox();
-    await touch("touchStart", [[h!.x + 40, h!.y + 25]]);
-    await touch("touchMove", [[h!.x + 40, h!.y - 95]]);
+    await page.waitForFunction(() => {
+      const el = document.querySelector<HTMLElement>(".map-overlays")!;
+      return (
+        Math.abs(
+          document.querySelector(".station-sheet")!.getBoundingClientRect()
+            .height - parseFloat(el.style.getPropertyValue("--sheet-height")),
+        ) < 1
+      );
+    });
+    // Safe-area overrides can leave less than one touch target between half
+    // and maximum. An upward drag must then remain at the merged maximum.
+    const distinctMaximum =
+      (await handle.getAttribute("aria-label")) === "시트 최대로 펼치기";
+    const h = (await handle.boundingBox())!;
+    await touch("touchStart", [[h.x + 40, h.y + 25]]);
+    await touch("touchMove", [[h.x + 40, Math.max(3, h.y - 95)]]);
     await touch("touchEnd", []);
-    await expect(sheet).toHaveAttribute("data-snap", "expanded");
+    await expect(sheet).toHaveAttribute(
+      "data-snap",
+      distinctMaximum ? "expanded" : "half",
+    );
+    await expect(
+      page.locator(".station-sheet .sheet-scroll"),
+    ).not.toHaveAttribute("inert", "");
     await page.getByRole("button", { name: "시트 닫기" }).click();
     await page.setViewportSize({ width: 320, height: 568 });
     await page.getByRole("link", { name: "배출 안내" }).click();

@@ -1,13 +1,7 @@
 "use client";
 import { PressButton } from "./ui/press-button";
 import { AnimatedNumber, Swap, ContentReveal } from "./motion/patterns";
-import {
-  useCallback,
-  useLayoutEffect,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   ChevronDown,
@@ -27,6 +21,8 @@ import CampusMap, {
 import { ItemIcon, LoadState, Notice } from "./common";
 
 import {
+  GroupPicker,
+  CoffeeChoice,
   BinDetail,
   EmptySearch,
   StationList,
@@ -47,11 +43,13 @@ import {
   labels,
   zoneAt,
   searchBins,
+  type Bin,
   type Point,
   type Waste,
 } from "@/lib/model";
 import type { Booth } from "@/lib/use-booth";
 
+import { useStationSearch } from "./use-station-search";
 import { MapIntentReceiver } from "./map-intent";
 import { StationSheet, type Snap } from "./station-sheet";
 const frequent: Waste[] = ["liquid", "plastic", "general"];
@@ -88,7 +86,13 @@ export function MobileMap({
   };
   const fresh = useInstalledBins(data?.bins, data?.epoch);
   const bins = data?.bins ?? [];
-  const filtered = searchBins(bins, query, filter);
+  const [pickedWaste, prefer] = useState<Waste | null>(null);
+  const {
+    filtered,
+    context,
+    intent: searchInfo,
+  } = useStationSearch(bins, query, filter, pickedWaste);
+  const coffee = searchInfo.coffee && !filter && !pickedWaste;
   const current = bins.find((b) => b.id === selected);
   const contentId = current?.id ?? "list";
   const [previous, remember] = useState(contentId);
@@ -104,12 +108,14 @@ export function MobileMap({
       ? [frequent[0], frequent[1], filter]
       : frequent;
   const reset = () => {
+    prefer(null);
     search("");
     setFilter(null);
     select("");
   };
   const updateFilter = (next: Waste | null) => {
     if (!filterOpen && layer.current) delete layer.current.dataset.filterExit;
+    prefer(null);
     setFilter(next);
     select("");
     openFilter(false);
@@ -132,7 +138,6 @@ export function MobileMap({
   const pick = (p: Point) => {
     if (draft?.step !== 1) return;
     if (!zoneAt(p)) {
-      changeDraft({ ...draft, point: null });
       notify("캠퍼스 관리 구역 안을 선택해 주세요.");
       return;
     }
@@ -157,46 +162,86 @@ export function MobileMap({
   const step = draft?.step;
   const settleSheet = useCallback((next: Snap) => {
     setSnap(next);
-    if (next === "peek") select("");
+    if (next === "peek") {
+      select("");
+      prefer(null);
+    }
   }, []);
   const closeDetail = useCallback(() => settleSheet("peek"), [settleSheet]);
   const revealRequest = useRef(0);
+  const [destination, setDestination] = useState<{
+    point: Point;
+    request: number;
+  } | null>(null);
   function cancelReveal() {
     revealRequest.current++;
   }
-  useEffect(() => () => cancelReveal(), []);
   function reveal(point: Point) {
-    const request = ++revealRequest.current;
-    // Only an explicit list/building selection schedules this operation. Measure its
-    // destination after layout settles, and yield to any intervening map gesture.
-    requestAnimationFrame(async () => {
-      const overlay = layer.current;
-      if (!overlay || revealRequest.current !== request) return;
-      await Promise.allSettled(
-        overlay.getAnimations().map((animation) => animation.finished),
-      );
-      if (revealRequest.current !== request || !overlay.isConnected) return;
-      const space = overlay
-        .querySelector(".map-tool-space")
-        ?.getBoundingClientRect();
-      if (!space) return;
-      const tools = overlay.querySelector<HTMLElement>(".map-actions");
-      const bottom =
-        tools && getComputedStyle(tools).visibility === "visible"
-          ? tools.getBoundingClientRect().top
-          : space.bottom;
-      if (bottom > space.top)
-        camera.current?.reveal(
-          point,
-          new DOMRect(space.x, space.y, space.width, bottom - space.y),
-        );
-    });
+    setDestination({ point, request: ++revealRequest.current });
   }
+  useLayoutEffect(() => {
+    if (!destination || !active) return;
+    const { point, request } = destination;
+    const overlay = layer.current;
+    if (!overlay) return;
+    let cancelled = false;
+    // The new detail and its ResizeObserver can commit on different frames.
+    // Sample the usable rectangle after both layout and the sheet transition settle.
+    async function afterLayout(el: HTMLElement) {
+      let previous: DOMRect | undefined;
+      while (!cancelled && request === revealRequest.current) {
+        await new Promise<void>((resolve) =>
+          requestAnimationFrame(() => resolve()),
+        );
+        await Promise.allSettled(el.getAnimations().map((a) => a.finished));
+        if (cancelled || request !== revealRequest.current || !el.isConnected)
+          return;
+        const space = el
+          .querySelector(".map-tool-space")
+          ?.getBoundingClientRect();
+        if (!space) return;
+        const tools = el.querySelector<HTMLElement>(".map-actions");
+        const bottom =
+          tools && getComputedStyle(tools).visibility === "visible"
+            ? tools.getBoundingClientRect().top
+            : space.bottom;
+        const visible = new DOMRect(
+          space.x,
+          space.y,
+          space.width,
+          bottom - space.y,
+        );
+        if (
+          previous &&
+          previous.x === visible.x &&
+          previous.y === visible.y &&
+          previous.width === visible.width &&
+          previous.height === visible.height
+        ) {
+          if (visible.height > 0) camera.current?.reveal(point, visible);
+          revealRequest.current++;
+          return;
+        }
+        previous = visible;
+      }
+    }
+    void afterLayout(overlay);
+    return () => {
+      cancelled = true;
+    };
+  }, [destination, active]);
   useLayoutEffect(() => {
     layer.current
       ?.querySelector(".sheet-scroll")
       ?.scrollTo(0, contentId === "list" ? listScroll.current : 0);
   }, [contentId]);
+  function alternative(bin: Bin, item: Waste) {
+    if (filter && filter !== item) setFilter(null);
+    if (!searchBins([bin], query, null).length) search("");
+    prefer(item);
+    select(bin.id);
+    reveal(bin);
+  }
   const startRequest = () => {
     select("");
     input.current?.blur();
@@ -204,7 +249,7 @@ export function MobileMap({
       draft ??
         savedDraft(data?.epoch) ?? {
           ...emptyDraft,
-          types: filter ? [filter] : [],
+          types: context ? [context] : [],
         },
     );
   };
@@ -237,6 +282,7 @@ export function MobileMap({
               search("");
               setFilter(null);
             }
+            prefer(null);
             select(bin.id);
             setSnap("half");
             reveal(bin);
@@ -273,6 +319,18 @@ export function MobileMap({
               draft?.step === 1 && draft.point ? zoneAt(draft.point) : undefined
             }
             picking={step === 1}
+            active={active}
+            groupContent={(ids, close) => (
+              <GroupPicker
+                picking={!!draft}
+                bins={(draft ? bins : filtered).filter((b) =>
+                  ids.includes(b.id),
+                )}
+                context={context}
+                choose={choose}
+                close={close}
+              />
+            )}
             mobile
             cameraRef={camera}
           />
@@ -300,6 +358,7 @@ export function MobileMap({
                     placeholder="건물·수거함 검색"
                     value={query}
                     onChange={(e) => {
+                      prefer(null);
                       search(e.target.value);
                       select("");
                       setSnap((value) => (value === "peek" ? "half" : value));
@@ -448,8 +507,8 @@ export function MobileMap({
                   )}
                   {current
                     ? current.name
-                    : filter
-                      ? labels[filter] + " 수거 거점"
+                    : context
+                      ? labels[context] + " 수거 거점"
                       : "수거 거점"}
                   {!current && (
                     <b>
@@ -470,6 +529,7 @@ export function MobileMap({
                   <button
                     onClick={() => {
                       select("");
+                      prefer(null);
                       setSnap("half");
                     }}
                   >
@@ -488,7 +548,9 @@ export function MobileMap({
                 {current ? (
                   <BinDetail
                     compact
-                    preferred={filter}
+                    bins={bins}
+                    onAlternative={alternative}
+                    preferred={context}
                     current={current}
                     confirmReport={setReport}
                   />
@@ -498,7 +560,15 @@ export function MobileMap({
                       {error && (
                         <LoadState error={error} retry={booth.refresh} />
                       )}
-                      {data && !filtered.length && (
+                      {coffee && (
+                        <CoffeeChoice
+                          drink={() => {
+                            search(searchInfo.drinkQuery);
+                            prefer(null);
+                          }}
+                        />
+                      )}
+                      {data && !coffee && !filtered.length && (
                         <EmptySearch
                           query={query}
                           filter={filter}
@@ -507,7 +577,7 @@ export function MobileMap({
                         />
                       )}
                       <StationList
-                        filter={filter}
+                        filter={context}
                         filtered={filtered}
                         choose={(pin) => {
                           choose(pin);

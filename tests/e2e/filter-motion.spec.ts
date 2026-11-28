@@ -7,6 +7,14 @@ test.use({
   isMobile: true,
 });
 const live = process.env.KAKAO_SMOKE_URL;
+function sortedIds(bins: Snapshot["bins"], item: Waste | null) {
+  const state = (n: number | null | undefined) =>
+    n == null ? 4 : n < 50 ? 0 : n < 80 ? 1 : n < 100 ? 2 : 3;
+  return bins
+    .filter((b) => !item || b.waste_types.includes(item))
+    .sort((a, b) => (item ? state(a.fills[item]) - state(b.fills[item]) : 0))
+    .map((b) => b.id);
+}
 async function prepare(page: Page) {
   const snapshot: Snapshot = await (
     await page.request.get(
@@ -163,9 +171,7 @@ test("필터 중간 프레임과 최신 거점·시트·지도 상태가 일치�
   ] as const) {
     const frames = await recordFilter(page, () => toggle(label));
     history.push({ item, frames });
-    const expected = bins
-      .filter((b) => !item || b.waste_types.includes(item))
-      .map((b) => b.id);
+    const expected = sortedIds(bins, item);
     await expect.poll(ids).toEqual(expected);
     await expect(sheet.locator(".sheet-label .visually-hidden")).toHaveText(
       String(expected.length),
@@ -188,11 +194,7 @@ test("필터 중간 프레임과 최신 거점·시트·지도 상태가 일치�
   await toggle("전체");
   await toggle("남은 음료");
   await toggle("플라스틱·PET");
-  await expect
-    .poll(ids)
-    .toEqual(
-      bins.filter((b) => b.waste_types.includes("plastic")).map((b) => b.id),
-    );
+  await expect.poll(ids).toEqual(sortedIds(bins, "plastic"));
   await toggle("전체");
   await expect(handle).toHaveAccessibleName("시트 최대로 펼치기");
   await handle.tap();
@@ -203,11 +205,7 @@ test("필터 중간 프레임과 최신 거점·시트·지도 상태가 일치�
   await dialog.getByRole("button", { name: "유리", exact: true }).tap();
   await expect(dialog).toHaveCount(0);
   await expect(trigger).toBeFocused();
-  await expect
-    .poll(ids)
-    .toEqual(
-      bins.filter((b) => b.waste_types.includes("glass")).map((b) => b.id),
-    );
+  await expect.poll(ids).toEqual(sortedIds(bins, "glass"));
   await page.getByRole("searchbox").fill("일치하지 않는 장소");
   await expect(sheet.locator(".empty-reveal")).toBeVisible();
   await sheet.getByRole("button", { name: "검색·필터 초기화" }).tap();
