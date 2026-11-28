@@ -145,7 +145,9 @@ test("최초 로딩, 실시간 상태 전환, 재시도와 열린 건의 보존"
   const entry = page.locator(".request-entry");
   await expect(entry).toHaveCount(1);
   await entry.locator("summary").tap();
-  await expect(entry.getByText("현재 건의 사유",{exact:true})).toBeVisible();
+  await expect(
+    entry.getByText("현재 건의 사유", { exact: true }),
+  ).toBeVisible();
   await expect(page.locator(".skeleton")).toHaveCount(0);
   await page.evaluate(() => {
     new MutationObserver((records) => {
@@ -174,7 +176,9 @@ test("최초 로딩, 실시간 상태 전환, 재시도와 열린 건의 보존"
   await expect(
     page.locator(".reading-scroll").getByRole("alert"),
   ).toContainText("테스트 연결 오류");
-  await expect(entry.getByText("현재 건의 사유",{exact:true})).toBeVisible();
+  await expect(
+    entry.getByText("현재 건의 사유", { exact: true }),
+  ).toBeVisible();
   fail = false;
   await page.getByRole("button", { name: "다시 연결" }).tap();
   await expect(page.locator(".reading-scroll").getByRole("alert")).toHaveCount(
@@ -257,7 +261,15 @@ test("빠른 첫 조회와 신규 설치를 재조회·필터 변경과 구분�
     }).observe(document, { childList: true, subtree: true });
   });
   await page.goto("/");
-  await expect(page.locator(".pin")).toHaveCount(snapshot.bins.length);
+  await expect
+    .poll(() =>
+      page
+        .locator(".pin:not([inert])")
+        .evaluateAll((ns) =>
+          ns.flatMap((n) => n.getAttribute("data-bin-ids")!.split(" ")).sort(),
+        ),
+    )
+    .toEqual(snapshot.bins.map((b) => b.id).sort());
   await expect(page.locator("html")).not.toHaveAttribute(
     "data-showed-skeleton",
     "yes",
@@ -268,7 +280,9 @@ test("빠른 첫 조회와 신규 설치를 재조회·필터 변경과 구분�
   await page.evaluate(() =>
     document.dispatchEvent(new Event("visibilitychange")),
   );
-  const pin = page.getByRole("button", { name: extra.name, exact: true });
+  const pin = page.locator(
+    '.pin[data-bin-ids~="' + extra.id + '"]:not([inert])',
+  );
   await expect(pin).toHaveAttribute("data-new-installation", "true");
   await expect(pin).not.toHaveAttribute("data-new-installation", "true");
   const update = page.waitForResponse("**/api/snapshot");

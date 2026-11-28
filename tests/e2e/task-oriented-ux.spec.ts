@@ -185,7 +185,7 @@ test("설치된 정확한 ID 열기와 오래된 링크 복구", async ({ page }
   await ready(page);
   await expect(page.locator(".sheet-label")).toHaveText(target.name);
   await expect(
-    page.getByRole("button", { name: target.name, exact: true }),
+    page.locator('.pin[data-selected-bin="' + target.id + '"]'),
   ).toHaveAttribute("aria-pressed", "true");
   await expect.poll(() => new URL(page.url()).search).toBe("");
   await page.goto(url("/?task=bin&id=00000000-0000-4000-a000-000000000000"));
