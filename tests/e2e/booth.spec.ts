@@ -640,7 +640,6 @@ test("터치 지도 제스처, 직접 위치 지정, 안전 영역과 가로 시
     await page.setViewportSize({ width: 844, height: 390 });
     await page.getByRole("button", { name: "목록 펼치기" }).click();
     const handle = page.locator(".sheet-handle");
-    await expect(handle).toHaveAccessibleName("시트 최대로 펼치기");
     await page.waitForFunction(() => {
       const el = document.querySelector<HTMLElement>(".map-overlays")!;
       return (
@@ -650,11 +649,21 @@ test("터치 지도 제스처, 직접 위치 지정, 안전 영역과 가로 시
         ) < 1
       );
     });
-    const h = await handle.boundingBox();
-    await touch("touchStart", [[h!.x + 40, h!.y + 25]]);
-    await touch("touchMove", [[h!.x + 40, h!.y - 95]]);
+    // Safe-area overrides can leave less than one touch target between half
+    // and maximum. An upward drag must then remain at the merged maximum.
+    const distinctMaximum =
+      (await handle.getAttribute("aria-label")) === "시트 최대로 펼치기";
+    const h = (await handle.boundingBox())!;
+    await touch("touchStart", [[h.x + 40, h.y + 25]]);
+    await touch("touchMove", [[h.x + 40, Math.max(3, h.y - 95)]]);
     await touch("touchEnd", []);
-    await expect(sheet).toHaveAttribute("data-snap", "expanded");
+    await expect(sheet).toHaveAttribute(
+      "data-snap",
+      distinctMaximum ? "expanded" : "half",
+    );
+    await expect(
+      page.locator(".station-sheet .sheet-scroll"),
+    ).not.toHaveAttribute("inert", "");
     await page.getByRole("button", { name: "시트 닫기" }).click();
     await page.setViewportSize({ width: 320, height: 568 });
     await page.getByRole("link", { name: "배출 안내" }).click();
