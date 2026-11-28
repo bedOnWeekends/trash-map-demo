@@ -32,7 +32,9 @@ function MobileRoutes({
             <MobileMap key={epochKey} booth={booth} active={onMap} />
           </div>
         )}
-        {children}
+        <div className="student-page-view" hidden={onMap}>
+          {children}
+        </div>
       </div>
     </StudentShell>
   );

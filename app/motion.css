@@ -4,15 +4,28 @@
   min-width: 0;
   position: relative;
   display: grid;
+  isolation: isolate;
 }
-.student-map-view {
+.student-map-view,
+.student-page-view {
   position: absolute;
   inset: 0;
+}
+.student-map-view {
   display: grid;
+  z-index: 0;
 }
 .student-map-view[aria-hidden="true"] {
+  /* Third-party tiles can set their own visibility. Hide the composited layer. */
+  opacity: 0;
   visibility: hidden;
   pointer-events: none;
+}
+.student-page-view:not([hidden]) {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  z-index: 1;
+  background: var(--color-paper);
 }
 .student-tabs {
   position: relative;
