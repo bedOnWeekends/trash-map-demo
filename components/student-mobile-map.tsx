@@ -1,13 +1,7 @@
 "use client";
 import { PressButton } from "./ui/press-button";
 import { AnimatedNumber, Swap, ContentReveal } from "./motion/patterns";
-import {
-  useCallback,
-  useLayoutEffect,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   ChevronDown,
@@ -175,37 +169,67 @@ export function MobileMap({
   }, []);
   const closeDetail = useCallback(() => settleSheet("peek"), [settleSheet]);
   const revealRequest = useRef(0);
+  const [destination, setDestination] = useState<{
+    point: Point;
+    request: number;
+  } | null>(null);
   function cancelReveal() {
     revealRequest.current++;
   }
-  useEffect(() => () => cancelReveal(), []);
   function reveal(point: Point) {
-    const request = ++revealRequest.current;
-    // Only an explicit list/building selection schedules this operation. Measure its
-    // destination after layout settles, and yield to any intervening map gesture.
-    requestAnimationFrame(async () => {
-      const overlay = layer.current;
-      if (!overlay || revealRequest.current !== request) return;
-      await Promise.allSettled(
-        overlay.getAnimations().map((animation) => animation.finished),
-      );
-      if (revealRequest.current !== request || !overlay.isConnected) return;
-      const space = overlay
-        .querySelector(".map-tool-space")
-        ?.getBoundingClientRect();
-      if (!space) return;
-      const tools = overlay.querySelector<HTMLElement>(".map-actions");
-      const bottom =
-        tools && getComputedStyle(tools).visibility === "visible"
-          ? tools.getBoundingClientRect().top
-          : space.bottom;
-      if (bottom > space.top)
-        camera.current?.reveal(
-          point,
-          new DOMRect(space.x, space.y, space.width, bottom - space.y),
-        );
-    });
+    setDestination({ point, request: ++revealRequest.current });
   }
+  useLayoutEffect(() => {
+    if (!destination || !active) return;
+    const { point, request } = destination;
+    const overlay = layer.current;
+    if (!overlay) return;
+    let cancelled = false;
+    // The new detail and its ResizeObserver can commit on different frames.
+    // Sample the usable rectangle after both layout and the sheet transition settle.
+    async function afterLayout(el: HTMLElement) {
+      let previous: DOMRect | undefined;
+      while (!cancelled && request === revealRequest.current) {
+        await new Promise<void>((resolve) =>
+          requestAnimationFrame(() => resolve()),
+        );
+        await Promise.allSettled(el.getAnimations().map((a) => a.finished));
+        if (cancelled || request !== revealRequest.current || !el.isConnected)
+          return;
+        const space = el
+          .querySelector(".map-tool-space")
+          ?.getBoundingClientRect();
+        if (!space) return;
+        const tools = el.querySelector<HTMLElement>(".map-actions");
+        const bottom =
+          tools && getComputedStyle(tools).visibility === "visible"
+            ? tools.getBoundingClientRect().top
+            : space.bottom;
+        const visible = new DOMRect(
+          space.x,
+          space.y,
+          space.width,
+          bottom - space.y,
+        );
+        if (
+          previous &&
+          previous.x === visible.x &&
+          previous.y === visible.y &&
+          previous.width === visible.width &&
+          previous.height === visible.height
+        ) {
+          if (visible.height > 0) camera.current?.reveal(point, visible);
+          revealRequest.current++;
+          return;
+        }
+        previous = visible;
+      }
+    }
+    void afterLayout(overlay);
+    return () => {
+      cancelled = true;
+    };
+  }, [destination, active]);
   useLayoutEffect(() => {
     layer.current
       ?.querySelector(".sheet-scroll")
