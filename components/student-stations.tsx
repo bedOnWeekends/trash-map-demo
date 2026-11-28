@@ -6,7 +6,13 @@ import { forwardRef, useContext, useLayoutEffect, useRef } from "react";
 import { AnimatePresence, motion, useIsPresent } from "motion/react";
 import { duration, distance, ease, tween } from "@/lib/motion";
 import { SheetDragging } from "./station-sheet";
-import { ChevronRight, Check, LoaderCircle, TriangleAlert } from "lucide-react";
+import {
+  X,
+  ChevronRight,
+  Check,
+  LoaderCircle,
+  TriangleAlert,
+} from "lucide-react";
 import { ItemIcon, Fill } from "./common";
 import { ConfirmDialog } from "./ui/dialog";
 import {
@@ -14,6 +20,7 @@ import {
   fillState,
   labels,
   preferredItems,
+  type Snapshot,
   zoneName,
   type Bin,
   type Waste,
@@ -31,6 +38,7 @@ export function BinDetail({
   bins,
   onAlternative,
   compact = false,
+  cooldowns,
   preferred,
   confirmReport,
 }: {
@@ -38,6 +46,7 @@ export function BinDetail({
   bins: Bin[];
   onAlternative: (bin: Bin, item: Waste) => void;
   compact?: boolean;
+  cooldowns?: Snapshot["report_cooldowns"];
   preferred?: Waste | null;
   confirmReport: (r: ReportTarget) => void;
 }) {
@@ -56,36 +65,55 @@ export function BinDetail({
       </p>
       <div className="divider" />
       <h3>품목별 포화도</h3>
-      {preferredItems(current.waste_types, preferred).map((t) => (
-        <div
-          className={"item-detail kind-" + t}
-          data-preferred={t === preferred || undefined}
-          key={t}
-        >
-          <div className="title-row">
-            <strong>
-              <ItemIcon kind={t} />
-              {labels[t]}
-            </strong>
-            <PressButton
-              className="report"
-              onClick={() => confirmReport({ id: current.id, item: t })}
-            >
-              <TriangleAlert size={14} />
-              가득 참 신고
-            </PressButton>
+      {preferredItems(current.waste_types, preferred).map((t) => {
+        const limited = cooldowns?.find(
+          (r) => r.bin_id === current.id && r.waste_type === t,
+        );
+        return (
+          <div
+            className={"item-detail kind-" + t}
+            data-preferred={t === preferred || undefined}
+            key={t}
+          >
+            <div className="title-row">
+              <strong>
+                <ItemIcon kind={t} />
+                {labels[t]}
+              </strong>
+              <PressButton
+                className="report"
+                disabled={!!limited}
+                onClick={() => confirmReport({ id: current.id, item: t })}
+              >
+                {limited ? <Check size={14} /> : <TriangleAlert size={14} />}
+                {limited ? "신고 접수됨" : "가득 참 신고"}
+              </PressButton>
+            </div>
+            <Fill value={current.fills[t]} />
+            {limited && (
+              <small className="cooldown-time">
+                <time dateTime={limited.retry_at}>
+                  {new Date(limited.retry_at).toLocaleTimeString("ko-KR", {
+                    timeZone: "Asia/Seoul",
+                    hour: "numeric",
+                    minute: "2-digit",
+                    second: "2-digit",
+                  })}
+                </time>
+                부터 재신고 가능
+              </small>
+            )}
+            {fillState(current.fills[t]) === "가득 참" && (
+              <AlternativeList
+                bins={bins}
+                current={current}
+                item={t}
+                choose={onAlternative}
+              />
+            )}
           </div>
-          <Fill value={current.fills[t]} />
-          {fillState(current.fills[t]) === "가득 참" && (
-            <AlternativeList
-              bins={bins}
-              current={current}
-              item={t}
-              choose={onAlternative}
-            />
-          )}
-        </div>
-      ))}
+        );
+      })}
     </>
   );
 }
@@ -376,10 +404,14 @@ export function EmptySearch({
       </p>
       <div className="empty-actions">
         {filter && (
-          <PressButton onClick={clearFilter}>품목 필터만 해제</PressButton>
+          <PressButton aria-label="품목 필터만 해제" onClick={clearFilter}>
+            {labels[filter]} <X size={14} />
+          </PressButton>
         )}
         {query.trim() && (
-          <PressButton onClick={clearQuery}>검색어 지우기</PressButton>
+          <PressButton aria-label="검색어 지우기" onClick={clearQuery}>
+            {query.trim()} <X size={14} />
+          </PressButton>
         )}
       </div>
     </div>

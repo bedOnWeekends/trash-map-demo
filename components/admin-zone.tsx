@@ -98,7 +98,13 @@ export function ZoneReview({
               if (!v) close();
             }}
             title={zone.name + " 지도 항목 " + ids.length + "개"}
-            description="확인할 건의 또는 수거 거점을 선택하세요."
+            description={
+              "확인할 건의 또는 수거 거점을 선택하세요. 미반영 포화 신고 " +
+              pins
+                .filter((p) => ids.includes(p.id))
+                .reduce((sum, p) => sum + (p.warning ?? 0), 0) +
+              "건"
+            }
             content={
               <div className="group-options admin-members">
                 {pins

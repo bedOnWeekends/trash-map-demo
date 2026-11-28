@@ -81,6 +81,24 @@ test("시드와 공간 검증, 신고 쿨다운, 재시도, 승인/설치, 세�
     String([a, b].find((r) => r.status === "rejected")?.reason),
     /COOLDOWN/,
   );
+  const ownLimit = (await snap(first, false)).report_cooldowns!;
+  assert.equal(ownLimit.length, 1);
+  const report = (await snap()).reports.find(
+    (r) =>
+      r.bin_id === five.id &&
+      r.waste_type === "liquid" &&
+      !initial.reports.some((old) => old.id === r.id),
+  )!;
+  assert.deepEqual(
+    ownLimit.map((r) => [
+      r.bin_id,
+      r.waste_type,
+      Date.parse(r.retry_at) - Date.parse(report.created_at),
+    ]),
+    [[five.id, "liquid", 600000]],
+  );
+  assert.deepEqual((await snap(other, false)).report_cooldowns, []);
+  assert.deepEqual((await snap()).report_cooldowns, []);
   await write("report", args, other);
   const beforeSensor = await snap(),
     rank = rankings(beforeSensor).find((r) => r.zone.id === "five")!;
@@ -202,4 +220,27 @@ test("도형 경계와 미세한 좌표 차이에서도 JS와 SQL 판정이 일�
     rows.map((r) => r.id),
     points.map((p) => zoneAt(p)?.id ?? null),
   );
+});
+
+test("방문자별 재신고 시작 시각은 만료와 세대 전환을 서버에서 확인한다", async () => {
+  const s = await snap(),
+    visitor = randomUUID();
+  const bin = s.bins.find((b) => b.waste_types.length > 1)!;
+  const [firstItem, secondItem] = bin.waste_types;
+  const report = (item: string) =>
+    write("report", { id: bin.id, item }, visitor, randomUUID(), s.epoch);
+  const first = await report(firstItem);
+  await report(secondItem);
+  assert.equal((await snap(visitor, false)).report_cooldowns?.length, 2);
+  await db.query(
+    "update booth.full_reports set created_at = now() - interval '10 minutes' where id=$1",
+    [first.id],
+  );
+  assert.deepEqual(
+    (await snap(visitor, false)).report_cooldowns?.map((r) => r.waste_type),
+    [secondItem],
+  );
+  await report(firstItem);
+  await write("reset", { confirm: true }, admin, randomUUID(), s.epoch);
+  assert.deepEqual((await snap(visitor, false)).report_cooldowns, []);
 });

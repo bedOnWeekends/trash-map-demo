@@ -4,6 +4,8 @@ import { PressButton } from "./ui/press-button";
 import { AnimatePresence, motion } from "motion/react";
 import { duration, tween } from "@/lib/motion";
 import type { NoticeKind } from "@/lib/use-booth";
+import { RequestReceipt } from "./request-receipt";
+import type { RequestRow } from "@/lib/model";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -109,10 +111,14 @@ export function Shell({ admin = false }: { admin?: boolean }) {
 export function Notice({
   text,
   kind = "info",
+  receipt,
+  receiptId,
   requestAction,
 }: {
   text: string;
   kind?: NoticeKind;
+  receipt?: RequestRow;
+  receiptId?: string;
   requestAction?: () => void;
 }) {
   const Icon =
@@ -131,9 +137,22 @@ export function Notice({
             transition={tween(duration.fast)}
           >
             <Icon size={18} aria-hidden /> <span>{text}</span>
+            {requestAction &&
+              (receipt ? (
+                <RequestReceipt row={receipt} />
+              ) : (
+                <small className="receipt-pending">
+                  상세 접수 정보 확인 중
+                </small>
+              ))}
             {requestAction && (
               <>
-                <Link href="/requests" onClick={requestAction}>
+                <Link
+                  href={
+                    receiptId ? "/requests#request-" + receiptId : "/requests"
+                  }
+                  onClick={requestAction}
+                >
                   내 건의 보기
                 </Link>
                 <button

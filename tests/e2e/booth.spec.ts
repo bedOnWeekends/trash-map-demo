@@ -98,6 +98,8 @@ test("세 독립 브라우저에서 신고, 위치 지정, 설치, 실시간 및
     await a.getByRole("button", { name: "가득 참 신고" }).click();
     await a.getByRole("button", { name: "확인하고 신고" }).click();
     await expect(a.getByRole("status")).toContainText("접수");
+    await expect(a.getByRole("button", { name: "신고 접수됨" })).toBeDisabled();
+    await expect(a.locator(".cooldown-time")).toContainText("재신고 가능");
     expect(await rank()).toBe(score + 1);
     const args = { id: five.id, item: "liquid" };
     const simultaneous = await Promise.all([
@@ -114,6 +116,20 @@ test("세 독립 브라우저에서 신고, 위치 지정, 설치, 실시간 및
     await a.getByLabel("건의 사유").fill("부스 공개 시연");
     await a.getByRole("button", { name: "건의 제출" }).click();
     await expect(a.getByRole("status")).toContainText("설치 건의를 접수했어요");
+    await expect(a.locator(".toast .request-receipt")).toContainText(
+      "부스 공개 시연",
+    );
+    const own = (await snap(a)).requests.find(
+      (r) => r.reason === "부스 공개 시연",
+    )!;
+    await expect(a.locator(".toast time")).toHaveAttribute(
+      "datetime",
+      own.created_at,
+    );
+    await expect(a.locator(".toast a")).toHaveAttribute(
+      "href",
+      "/requests#request-" + own.id,
+    );
     expect(await rank()).toBe(score + 5);
     await expect(
       c
@@ -157,6 +173,27 @@ test("세 독립 브라우저에서 신고, 위치 지정, 설치, 실시간 및
     await expect(
       c.getByRole("button", { name: "남은 음료", exact: true }),
     ).toHaveAttribute("aria-pressed", "true");
+    await c.getByRole("button", { name: "관람객 화면", exact: true }).click();
+    const exhibition = c.locator(".exhibition");
+    await expect(exhibition.locator(".exhibit-ranks li").first()).toContainText(
+      "5호관",
+    );
+    for (
+      let i = 0;
+      i < 8 &&
+      !(await exhibition.locator(".event-record").innerText()).includes(
+        "설치 건의 접수",
+      );
+      i++
+    )
+      await exhibition.getByRole("button", { name: /다음 변화 보기/ }).click();
+    await expect(exhibition.locator(".event-record")).toContainText("5호관");
+    await expect(exhibition.locator(".event-record")).toContainText(
+      "설치 건의 접수",
+    );
+    await expect(exhibition).not.toContainText("부스 공개 시연");
+    await c.getByRole("button", { name: "운영 화면", exact: true }).click();
+    await expect(c.getByLabel("신규 거점명")).toHaveValue("새 음료 거점");
     const late = await write(b, "requests", epoch, {
       ...proposal,
       reason: "승인 대상 확인 이후",
@@ -198,9 +235,28 @@ test("세 독립 브라우저에서 신고, 위치 지정, 설치, 실시간 및
       .locator(".request-entry")
       .filter({ hasText: "부스 공개 시연" });
     await entry.locator("summary").click();
+    await expect(entry.locator(".request-receipt ol li")).toHaveCount(3);
+    await expect(entry.locator(".request-receipt")).toContainText("실제 설치");
     await entry.getByRole("link", { name: "설치된 수거함 보기" }).click();
     await expect(a.locator(".sheet-label")).toHaveText(newBin.name);
     await expect(a.locator(marker)).toHaveAttribute("aria-pressed", "true");
+    await c.getByLabel("수거 거점", { exact: true }).selectOption(newBin.id);
+    await c.getByLabel("설치 품목").selectOption("liquid");
+    await c.getByLabel("포화도 설정").press("End");
+    await expect(c.locator(".bin-section .draft-line")).toHaveCSS(
+      "bottom",
+      /px$/,
+    );
+    await c.getByRole("button", { name: "측정값 적용" }).click();
+    await expect(c.locator(".sensor-result")).toContainText("100% 적용됨");
+    const liquid = a.locator(".item-detail.kind-liquid");
+    await expect(liquid.locator(".fill-value")).toHaveText("100%");
+    await expect(liquid.locator(".station-alternatives")).toBeVisible();
+    await liquid.getByRole("button", { name: "가득 참 신고" }).click();
+    await a.getByRole("button", { name: "확인하고 신고" }).click();
+    await expect(
+      liquid.getByRole("button", { name: "신고 접수됨" }),
+    ).toBeDisabled();
     await a.setViewportSize({ width: 1320, height: 900 });
     await a.goto(base + "/requests");
     // Exercise a report-only zone and a candidate offset from the reporting bin.
@@ -525,6 +581,18 @@ test("모바일 시트, 품목 신고, 작성 복원, 제출 및 실시간 갱�
     await expect(page.getByLabel("건의 사유")).toHaveValue(reason);
     await page.getByRole("button", { name: "건의 제출" }).click();
     await expect(page.getByRole("status")).toContainText("접수");
+    const receipt = page.locator(".map-space .toast:has(.request-receipt)");
+    await expect(receipt.locator("time")).toBeVisible();
+    await expect(receipt).toBeInViewport({ ratio: 0.99 });
+    const bounds = await receipt.boundingBox();
+    expect(bounds!.x).toBeGreaterThanOrEqual(0);
+    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(
+      page.viewportSize()!.width,
+    );
+    await page.screenshot({
+      path: info.outputPath("receipt.png"),
+      animations: "disabled",
+    });
     await page.getByRole("link", { name: "내 건의 보기", exact: true }).click();
     await expect(page.locator(".request-entry").first()).toContainText("접수");
     await page.locator(".request-entry summary").first().click();

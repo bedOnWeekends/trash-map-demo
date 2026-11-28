@@ -36,7 +36,7 @@
   --mixed: #7351a8;
   --candidate: #156ba9;
   --warn: #a43d2f;
-  --subtle: color-mix(in srgb, var(--color-accent-2) 8%, var(--color-paper));
+  --subtle: color-mix(in srgb, var(--color-accent) 8%, var(--color-paper));
   --map-bg: #e8eff3;
   --building: #d0dce5;
   --building-edge: #adbdca;
@@ -44,7 +44,7 @@
   --lawn: #c3d6b8;
   --water: #afdbe9;
   --zone: #708599;
-  --selected: color-mix(in srgb, var(--color-accent-2) 18%, var(--map-bg));
+  --selected: color-mix(in srgb, var(--color-accent) 18%, var(--map-bg));
   --empty: #77827d;
   --ok: #2e7650;
   --mid: #916819;
@@ -1363,6 +1363,12 @@ textarea {
 }
 
 @media (min-width: 681px) {
+  .side-action {
+    position: sticky;
+    bottom: 0;
+    flex: none;
+    background: var(--color-paper-3);
+  }
   .side-content {
     min-height: 0;
     overscroll-behavior: contain;
@@ -1512,4 +1518,26 @@ textarea {
 .group-options {
   max-height: min(55dvh, 400px);
   overflow: auto;
+}
+
+@media (min-width: 681px) {
+  .side-content:has(.list-heading) {
+    padding-top: var(--space-md);
+  }
+  .side-content > .search {
+    margin: 0 0 var(--space-sm);
+  }
+  .side-content .chips.filter {
+    gap: var(--space-2xs);
+  }
+  .side-content .filter .press-button {
+    --press-padding: var(--space-2xs) var(--space-xs);
+  }
+  .side-content .list-heading {
+    margin-block: var(--space-sm) var(--space-2xs);
+  }
+  .side-content .list-heading h2 {
+    margin: 0;
+    font-size: 1rem;
+  }
 }

@@ -42,6 +42,7 @@ import {
   items,
   labels,
   zoneAt,
+  zoneName,
   searchBins,
   type Bin,
   type Point,
@@ -410,7 +411,9 @@ export function MobileMap({
                       onClick={() => updateFilter(filter === t ? null : t)}
                     >
                       <span className="chip-pill">
-                        <i className={"dot kind-" + t} />
+                        <span className={"type-glyph kind-" + t}>
+                          <ItemIcon kind={t} size={15} />
+                        </span>
                         {labels[t]}
                       </span>
                     </button>
@@ -418,10 +421,12 @@ export function MobileMap({
                 </div>
               </div>
             )}
-            {!draft && (
+            {active && !draft && (
               <Notice
                 kind={booth.noticeKind}
                 text={booth.notice}
+                receipt={booth.receipt}
+                receiptId={booth.receiptId}
                 requestAction={
                   booth.requestAction ? () => notify("") : undefined
                 }
@@ -496,12 +501,43 @@ export function MobileMap({
           ) : (
             <StationSheet
               snap={snap}
+              back={
+                current && (
+                  <button
+                    className="sheet-edge"
+                    aria-label="거점 목록"
+                    onClick={() => {
+                      select("");
+                      prefer(null);
+                      setSnap("half");
+                    }}
+                  >
+                    <ArrowLeft size={18} />
+                    <span className="back-caption">목록</span>
+                  </button>
+                )
+              }
+              close={
+                current && (
+                  <button
+                    className="sheet-edge"
+                    aria-label="시트 닫기"
+                    onClick={closeDetail}
+                  >
+                    <ChevronDown size={18} />
+                  </button>
+                )
+              }
               onSnap={settleSheet}
               label={current ? "거점 상세" : "수거 거점 목록"}
               title={
                 <>
                   {current ? (
                     <ItemIcon kind={binPin(current).kind} />
+                  ) : context ? (
+                    <span className={"type-glyph kind-" + context}>
+                      <ItemIcon kind={context} size={18} />
+                    </span>
                   ) : (
                     <List size={18} />
                   )}
@@ -524,29 +560,21 @@ export function MobileMap({
                 </>
               }
             >
-              <div className="sheet-tools">
-                {current ? (
-                  <button
-                    onClick={() => {
-                      select("");
-                      prefer(null);
-                      setSnap("half");
-                    }}
-                  >
-                    <ArrowLeft size={15} />
-                    거점 목록
+              {!current && (
+                <div className="sheet-tools">
+                  {(query || filter) && (
+                    <button onClick={reset}>검색·필터 초기화</button>
+                  )}
+                  <button aria-label="시트 닫기" onClick={closeDetail}>
+                    <ChevronDown size={16} />
+                    닫기
                   </button>
-                ) : query || filter ? (
-                  <button onClick={reset}>검색·필터 초기화</button>
-                ) : null}
-                <button aria-label="시트 닫기" onClick={closeDetail}>
-                  <ChevronDown size={16} />
-                  닫기
-                </button>
-              </div>
+                </div>
+              )}
               <Swap identity={contentId} direction={direction}>
                 {current ? (
                   <BinDetail
+                    cooldowns={data?.report_cooldowns}
                     compact
                     bins={bins}
                     onAlternative={alternative}
@@ -576,6 +604,17 @@ export function MobileMap({
                           clearQuery={() => search("")}
                         />
                       )}
+                      {searchInfo.aliases
+                        .filter((a) =>
+                          filtered.some(
+                            (b) => zoneName(b.zone_id) === a.building,
+                          ),
+                        )
+                        .map((a) => (
+                          <small key={a.word} className="alias-match">
+                            “{a.word}” · {a.building}
+                          </small>
+                        ))}
                       <StationList
                         filter={context}
                         filtered={filtered}

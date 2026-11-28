@@ -24,6 +24,9 @@ export function useBooth(admin = false, enabled = true) {
       setMessage({ text, kind, requestAction }),
     [],
   );
+  const [receipt, setReceipt] = useState<{ id: string; epoch: string } | null>(
+    null,
+  );
   const active = useRef(true),
     writing = useRef(false),
     retry = useRef<{ body: string; key: string } | null>(null),
@@ -129,6 +132,25 @@ export function useBooth(admin = false, enabled = true) {
     const t = setTimeout(() => notify(""), 5500);
     return () => clearTimeout(t);
   }, [message, notice, notify]);
+  useEffect(() => {
+    if (!enabled || !data?.report_cooldowns?.length) return;
+    const delay =
+      Math.min(
+        ...data.report_cooldowns.map((row) => Date.parse(row.retry_at)),
+      ) - Date.parse(data.as_of);
+    let timer: ReturnType<typeof setTimeout>;
+    let disposed = false;
+    async function verify() {
+      const snapshot = await refresh();
+      if (!disposed && (!snapshot || snapshot === data))
+        timer = setTimeout(verify, 7000);
+    }
+    timer = setTimeout(verify, Math.max(100, delay + 80));
+    return () => {
+      disposed = true;
+      clearTimeout(timer);
+    };
+  }, [data, enabled, refresh]);
   const mutate = async (
     path: string,
     payload: Record<string, unknown>,
@@ -154,6 +176,12 @@ export function useBooth(admin = false, enabled = true) {
         throw Error(json.error);
       }
       retry.current = null;
+      if (path === "requests")
+        setReceipt(
+          json.id && json.epoch === data.epoch
+            ? { id: json.id, epoch: json.epoch }
+            : null,
+        );
       if (success) notify(success, "success", path === "requests");
       const updated = await refresh();
       onRead?.(updated);
@@ -176,6 +204,11 @@ export function useBooth(admin = false, enabled = true) {
     busy,
     notice,
     noticeKind,
+    receipt:
+      receipt?.epoch === data?.epoch
+        ? data?.requests.find((r) => r.id === receipt?.id)
+        : undefined,
+    receiptId: receipt?.epoch === data?.epoch ? receipt?.id : undefined,
     requestAction: message.requestAction,
     notify,
     refresh,

@@ -217,7 +217,10 @@ function PinControl({
       aria-hidden={!present || undefined}
       title={label}
       data-new-installation={p.fresh || undefined}
-      aria-label={label}
+      aria-label={
+        label +
+        (admin && p.warning ? " · 미반영 포화 신고 " + p.warning + "건" : "")
+      }
       aria-pressed={chosen}
       data-bin-ids={members ? members.map((m) => m.id).join(" ") : p.id}
       data-group-size={members?.length}
@@ -430,7 +433,7 @@ export default function CampusMap({
           height = size.height;
           const position = m.getCenter();
           m.relayout();
-          if (mobile) m.setCenter(position);
+          m.setCenter(position);
         });
         observer.observe(host.current);
         setMap(m);
@@ -460,15 +463,19 @@ export default function CampusMap({
     const regions =
       showZones === "admin" ? zones : pickedZone ? [pickedZone] : [];
     const activeZone = pickedZone ?? zone;
+    const emphasis =
+      showZones === "admin" && pickedZone && !zone
+        ? "--color-accent-2"
+        : "--color-accent";
     const layers = regions.map(
       (z) =>
         new kakao.maps.Polygon({
           map,
           path: z.polygon.map(([lng, lat]) => new kakao.maps.LatLng(lat, lng)),
           strokeWeight: z.id === activeZone?.id ? 3 : 1,
-          strokeColor: colors.getPropertyValue("--color-accent").trim(),
+          strokeColor: colors.getPropertyValue(emphasis).trim(),
           strokeOpacity: z.id === activeZone?.id ? 1 : 0.32,
-          fillColor: colors.getPropertyValue("--color-accent-2").trim(),
+          fillColor: colors.getPropertyValue(emphasis).trim(),
           fillOpacity: z.id === activeZone?.id ? 0.18 : 0.035,
         }),
     );

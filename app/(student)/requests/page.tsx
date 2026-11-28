@@ -1,4 +1,6 @@
 "use client";
+import { RequestReceipt } from "@/components/request-receipt";
+import type { Bin } from "@/lib/model";
 import { mapHref } from "@/lib/student-navigation";
 import { useMobileStudent } from "@/components/student-shell";
 import { useStudentBooth } from "@/components/student-layout";
@@ -69,7 +71,12 @@ function MobileRequests({ b }: { b: Booth }) {
           )}
           <AnimatePresence initial={false}>
             {b.data?.requests.map((r, index) => (
-              <RequestEntry key={r.id} r={r} index={index} />
+              <RequestEntry
+                key={r.id}
+                r={r}
+                index={index}
+                bin={b.data?.bins.find((bin) => bin.id === r.installed_bin_id)}
+              />
             ))}
           </AnimatePresence>
         </ContentReveal>
@@ -101,14 +108,18 @@ function DesktopRequests({ b }: { b: Booth }) {
             <WriteLink epoch={b.data.epoch} />
           )}
           {b.data?.requests.map((r) => (
-            <article key={r.id} className="history">
+            <article id={"request-" + r.id} key={r.id} className="history">
               <div className="title-row">
                 <h2>{zoneName(r.zone_id)}</h2>
                 <StatusLabel status={r.status} />
               </div>
               <small>{timeText(r.created_at)}</small>
               <p>{r.requested_waste_types.map((t) => labels[t]).join(" / ")}</p>
-              <p>{r.reason}</p>
+              <RequestReceipt
+                row={r}
+                history
+                bin={b.data?.bins.find((bin) => bin.id === r.installed_bin_id)}
+              />
               <InstalledLink r={r} />
             </article>
           ))}
@@ -119,12 +130,21 @@ function DesktopRequests({ b }: { b: Booth }) {
   );
 }
 
-function RequestEntry({ r, index }: { r: RequestRow; index: number }) {
+function RequestEntry({
+  r,
+  index,
+  bin,
+}: {
+  r: RequestRow;
+  index: number;
+  bin?: Bin;
+}) {
   const reduced = useMotionPreference();
   const ref = useChangeHighlight<HTMLDetailsElement>(r.status);
   return (
     <motion.details
       ref={ref}
+      id={"request-" + r.id}
       className="request-entry"
       layout="position"
       initial={{ opacity: 0, y: reduced ? 0 : distance.reveal }}
@@ -148,7 +168,7 @@ function RequestEntry({ r, index }: { r: RequestRow; index: number }) {
         <ChevronDown size={16} />
       </summary>
       <div className="accordion-clip">
-        <p>{r.reason}</p>
+        <RequestReceipt row={r} history bin={bin} />
         <InstalledLink r={r} />
       </div>
     </motion.details>
