@@ -34,6 +34,15 @@ test("실제 변경 행의 강조, 선택 유지, 건물별 초안과 최신 승
     };
   });
   await open(page, s);
+  const firstScreen = await page.evaluate(() => ({
+    lastRank: document.querySelectorAll(".rank-row")[7].getBoundingClientRect()
+      .bottom,
+    mapTop: document.querySelector(".map-surface")!.getBoundingClientRect().top,
+    overflow: document.documentElement.scrollWidth > innerWidth,
+  }));
+  expect(firstScreen.lastRank).toBeLessThanOrEqual(768);
+  expect(firstScreen.mapTop).toBeLessThan(568);
+  expect(firstScreen.overflow).toBe(false);
   const selected = page.locator(".rank-row[aria-pressed=true]");
   await expect(selected).toContainText("본관");
   const map = await page.locator(".map-surface").elementHandle();

@@ -139,3 +139,5 @@ KAKAO_SMOKE_URL=https://trash-map-demo.vercel.app npm run test:e2e -- tests/e2e/
 관리자 순위는 구역 ID를 키로 사용한다. 위치는 Layout 350ms로 재배치하고 건의·신고 ID 변화가 확인된 행만 Emphasis 450ms로 한 번 강조한다. 현재 점수와 마지막 변화 이유, 지속적인 선택 표시를 분리한다. 같은 점수에서도 서로 상쇄된 접수와 처리를 확인할 수 있다. 센서 저장 눈금과 차트의 막대·선·점은 최신 스냅샷 수치로 갱신한다. Reduced Motion에서는 이동 없이 최종 값을 읽는다.
 
 로컬 Supabase에서 `tests/e2e/booth.spec.ts`는 학생 두 명과 운영자가 신고·건의부터 신규 설치, 학생의 실제 설치 거점 열기까지 진행한다. `admin-workflow.spec.ts`는 독립된 읽기 응답으로 순위 원인, 건물별 초안, 만료된 승인 대상, 미측정과 실제 0%, 저장 결과를 재현한다.
+
+[1366×768 변경 전 첫 화면](admin-before.webp) · [변경 후 첫 화면](admin-workbench.webp). 변경 전 화면은 로컬 시드, 변경 후 화면은 건의와 신고가 같은 위치에 있는 QA 데이터를 표시한다.
