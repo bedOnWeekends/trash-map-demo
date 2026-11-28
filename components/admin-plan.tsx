@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { ItemPicker } from "./common";
+import { ItemIcon, ItemPicker } from "./common";
 import { ConfirmDialog } from "./ui/dialog";
 import { PressButton } from "./ui/press-button";
 import { labels, rankings, timeText, type Waste } from "@/lib/model";
@@ -211,7 +211,16 @@ export function InstallationPlan({
             ).map(([label, ts]) => (
               <div key={label}>
                 <dt>{label}</dt>
-                <dd>{typeNames(ts)}</dd>
+                <dd>
+                  {ts.length
+                    ? ts.map((t) => (
+                        <span key={t} className={"plan-type kind-" + t}>
+                          <ItemIcon kind={t} size={14} />
+                          {labels[t]}
+                        </span>
+                      ))
+                    : "없음"}
+                </dd>
               </div>
             ))}
             {review.expired && (

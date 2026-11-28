@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { Activity } from "lucide-react";
-import { type Snapshot, type Waste, labels } from "@/lib/model";
+import { type Snapshot, type Waste, labels, fillState } from "@/lib/model";
 import { type Booth } from "@/lib/use-booth";
 import { PressButton } from "./ui/press-button";
 
@@ -137,16 +137,65 @@ export function Sensor({
         </div>
         {bin && item && bin.waste_types.includes(item) ? (
           <>
-            <div className="sensor-values">
-              <div>
-                현재 측정값
-                <strong>
-                  {committed == null ? "정보 없음" : committed + "%"}
-                </strong>
+            <div className="sensor-preview">
+              <div
+                className="bin-section"
+                data-unknown={committed == null || undefined}
+                data-decreasing={
+                  (edit.value != null &&
+                    committed != null &&
+                    edit.value < committed) ||
+                  undefined
+                }
+                aria-hidden="true"
+              >
+                {committed != null && (
+                  <i
+                    className="bin-level"
+                    data-level={fillState(committed)}
+                    style={{ height: committed + "%" }}
+                  />
+                )}
+                {edit.value != null && edit.value !== committed && (
+                  <>
+                    {committed != null && (
+                      <i
+                        className="bin-difference"
+                        style={{
+                          bottom: Math.min(committed, edit.value) + "%",
+                          height: Math.abs(committed - edit.value) + "%",
+                        }}
+                      />
+                    )}
+                    <i
+                      className="draft-line"
+                      style={{ bottom: edit.value + "%" }}
+                    />
+                  </>
+                )}
               </div>
-              <div>
-                적용 예정
-                <strong>{edit.value == null ? "—" : edit.value + "%"}</strong>
+              <div className="sensor-values">
+                <div>
+                  현재 측정값
+                  <strong>
+                    {committed == null ? "정보 없음" : committed + "%"}
+                  </strong>
+                </div>
+                <div>
+                  적용 예정
+                  <strong>{edit.value == null ? "—" : edit.value + "%"}</strong>
+                  {edit.value != null && (
+                    <small>
+                      {fillState(edit.value)}
+                      {committed != null &&
+                        edit.value !== committed &&
+                        " · " +
+                          (edit.value > committed ? "+" : "−") +
+                          Math.abs(edit.value - committed) +
+                          "%p"}
+                    </small>
+                  )}
+                </div>
               </div>
             </div>
             <label htmlFor="sensor-pct">포화도 설정</label>

@@ -31,6 +31,8 @@ export type RequestRow = Point & {
   zone_id: string;
   reason: string;
   requested_waste_types: Waste[];
+  approved_at?: string | null;
+  installed_at?: string | null;
   installed_bin_id?: string | null;
   status: keyof typeof stateLabels;
   created_at: string;
@@ -71,6 +73,7 @@ export type Snapshot = {
   as_of: string;
   bins: Bin[];
   requests: RequestRow[];
+  report_cooldowns?: { bin_id: string; waste_type: Waste; retry_at: string }[];
   reports: Report[];
   batches: Batch[];
   readings: Reading[];
@@ -171,6 +174,9 @@ export function searchIntent(query: string) {
     words.map((word) => itemWords.get(word)).filter((t): t is Waste => !!t),
   );
   return {
+    aliases: words
+      .filter((w) => buildingWords.has(w))
+      .map((word) => ({ word, building: buildingWords.get(word)! })),
     tokens: words.map((word) => buildingWords.get(word) ?? word),
     waste: types.size === 1 ? [...types][0] : null,
     coffee: words.includes("커피") && !types.size,

@@ -13,7 +13,14 @@ import {
 } from "lucide-react";
 import { useInstalledBins } from "./motion/data";
 import CampusMap, { type Pin, type MobileCamera } from "./campus-map";
-import { Shell, Footer, Notice, LoadState, ItemPicker } from "./common";
+import {
+  Shell,
+  Footer,
+  Notice,
+  LoadState,
+  ItemPicker,
+  ItemIcon,
+} from "./common";
 import {
   GroupPicker,
   CoffeeChoice,
@@ -44,6 +51,7 @@ import {
   zones,
   searchBins,
   zoneAt,
+  zoneName,
   type Waste,
   type Bin,
   type Point,
@@ -340,6 +348,7 @@ function StudentScreen({ booth }: { booth: Booth }) {
                       거점 목록
                     </button>
                     <BinDetail
+                      cooldowns={data?.report_cooldowns}
                       bins={bins}
                       onAlternative={alternative}
                       preferred={context}
@@ -384,13 +393,20 @@ function StudentScreen({ booth }: { booth: Booth }) {
                             setFilter(filter === t ? null : t);
                           }}
                         >
-                          <i className={"dot kind-" + t} />
+                          <span className={"type-glyph kind-" + t}>
+                            <ItemIcon kind={t} size={15} />
+                          </span>
                           {labels[t]}
                         </PressButton>
                       ))}
                     </div>
                     <div className="list-heading">
                       <h3>
+                        {context && (
+                          <span className={"type-glyph kind-" + context}>
+                            <ItemIcon kind={context} size={17} />
+                          </span>
+                        )}{" "}
                         {context ? labels[context] + " 수거 거점" : "수거 거점"}
                       </h3>
                       <b>
@@ -421,6 +437,17 @@ function StudentScreen({ booth }: { booth: Booth }) {
                           clearQuery={() => search("")}
                         />
                       )}
+                      {searchInfo.aliases
+                        .filter((a) =>
+                          filtered.some(
+                            (b) => zoneName(b.zone_id) === a.building,
+                          ),
+                        )
+                        .map((a) => (
+                          <small key={a.word} className="alias-match">
+                            “{a.word}” · {a.building}
+                          </small>
+                        ))}
                       <StationList
                         filter={context}
                         filtered={filtered}
@@ -489,6 +516,7 @@ function StudentScreen({ booth }: { booth: Booth }) {
       <Notice
         kind={booth.noticeKind}
         text={notice}
+        receipt={booth.receipt}
         requestAction={booth.requestAction ? () => notify("") : undefined}
       />
       <ConfirmDialog

@@ -217,7 +217,10 @@ function PinControl({
       aria-hidden={!present || undefined}
       title={label}
       data-new-installation={p.fresh || undefined}
-      aria-label={label}
+      aria-label={
+        label +
+        (admin && p.warning ? " · 미반영 포화 신고 " + p.warning + "건" : "")
+      }
       aria-pressed={chosen}
       data-bin-ids={members ? members.map((m) => m.id).join(" ") : p.id}
       data-group-size={members?.length}
@@ -430,7 +433,7 @@ export default function CampusMap({
           height = size.height;
           const position = m.getCenter();
           m.relayout();
-          if (mobile) m.setCenter(position);
+          m.setCenter(position);
         });
         observer.observe(host.current);
         setMap(m);

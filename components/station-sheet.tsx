@@ -26,16 +26,20 @@ export function StationSheet({
   onSnap,
   label,
   title,
+  back,
+  close,
   children,
 }: {
   snap: Snap;
   onSnap: (s: Snap) => void;
   label: string;
   title: ReactNode;
+  back?: ReactNode;
+  close?: ReactNode;
   children: ReactNode;
 }) {
   const layer = useRef<HTMLDivElement>(null);
-  const header = useRef<HTMLButtonElement>(null),
+  const header = useRef<HTMLDivElement>(null),
     content = useRef<HTMLDivElement>(null),
     sheet = useRef<HTMLElement>(null);
   const [stops, setStops] = useState<Stop[]>([{ snap: "peek", height: 54 }]);
@@ -158,75 +162,83 @@ export function StationSheet({
       aria-label={label}
       data-state={dragging ? "dragging" : active.snap}
     >
-      <button
-        type="button"
+      <div
+        className="sheet-heading"
+        data-detail={!!back || undefined}
         ref={header}
-        className="sheet-handle"
-        aria-label={
-          next.snap === "peek"
-            ? "목록 접기"
-            : next.snap === "half"
-              ? "목록 펼치기"
-              : "시트 최대로 펼치기"
-        }
-        aria-expanded={open}
-        onPointerDown={(e) => {
-          if (gesture.current || e.button !== 0) return;
-          skipClick.current = false;
-          gesture.current = {
-            id: e.pointerId,
-            y: e.clientY,
-            origin: sheet.current!.getBoundingClientRect().height,
-            lastY: e.clientY,
-            time: e.timeStamp,
-            velocity: 0,
-            moved: false,
-          };
-          e.currentTarget.setPointerCapture(e.pointerId);
-        }}
-        onPointerMove={(e) => {
-          const g = gesture.current,
-            el = layer.current;
-          if (!g || g.id !== e.pointerId || !el) return;
-          const delta = g.y - e.clientY;
-          if (!g.moved && Math.abs(delta) < 4) return;
-          if (!g.moved) {
-            g.moved = true;
-            setDragging(true);
-            el.setAttribute("data-dragging", "true");
-          }
-          g.velocity =
-            (g.lastY - e.clientY) / Math.max(8, e.timeStamp - g.time);
-          g.lastY = e.clientY;
-          g.time = e.timeStamp;
-          const height = Math.max(
-            stops[0].height,
-            Math.min(stops[stops.length - 1].height, g.origin + delta),
-          );
-          cancelAnimationFrame(frame.current);
-          frame.current = requestAnimationFrame(() =>
-            el.style.setProperty("--drag-height", height + "px"),
-          );
-        }}
-        onPointerUp={(e) => finish(e)}
-        onLostPointerCapture={(e) => finish(e, true)}
-        onPointerCancel={(e) => finish(e, true)}
-        onClick={(e) => {
-          if (e.detail && skipClick.current) {
-            skipClick.current = false;
-            return;
-          }
-          onSnap(next.snap);
-        }}
       >
-        <span className="grabber" />
-        <span className="sheet-label">{title}</span>
-        {next.snap === "peek" ? (
-          <ChevronDown size={19} />
-        ) : (
-          <ChevronUp size={19} />
-        )}
-      </button>
+        {back}
+        <button
+          type="button"
+          className="sheet-handle"
+          aria-label={
+            next.snap === "peek"
+              ? "목록 접기"
+              : next.snap === "half"
+                ? "목록 펼치기"
+                : "시트 최대로 펼치기"
+          }
+          aria-expanded={open}
+          onPointerDown={(e) => {
+            if (gesture.current || e.button !== 0) return;
+            skipClick.current = false;
+            gesture.current = {
+              id: e.pointerId,
+              y: e.clientY,
+              origin: sheet.current!.getBoundingClientRect().height,
+              lastY: e.clientY,
+              time: e.timeStamp,
+              velocity: 0,
+              moved: false,
+            };
+            e.currentTarget.setPointerCapture(e.pointerId);
+          }}
+          onPointerMove={(e) => {
+            const g = gesture.current,
+              el = layer.current;
+            if (!g || g.id !== e.pointerId || !el) return;
+            const delta = g.y - e.clientY;
+            if (!g.moved && Math.abs(delta) < 4) return;
+            if (!g.moved) {
+              g.moved = true;
+              setDragging(true);
+              el.setAttribute("data-dragging", "true");
+            }
+            g.velocity =
+              (g.lastY - e.clientY) / Math.max(8, e.timeStamp - g.time);
+            g.lastY = e.clientY;
+            g.time = e.timeStamp;
+            const height = Math.max(
+              stops[0].height,
+              Math.min(stops[stops.length - 1].height, g.origin + delta),
+            );
+            cancelAnimationFrame(frame.current);
+            frame.current = requestAnimationFrame(() =>
+              el.style.setProperty("--drag-height", height + "px"),
+            );
+          }}
+          onPointerUp={(e) => finish(e)}
+          onLostPointerCapture={(e) => finish(e, true)}
+          onPointerCancel={(e) => finish(e, true)}
+          onClick={(e) => {
+            if (e.detail && skipClick.current) {
+              skipClick.current = false;
+              return;
+            }
+            onSnap(next.snap);
+          }}
+        >
+          <span className="grabber" />
+          <span className="sheet-label">{title}</span>
+          {!back &&
+            (next.snap === "peek" ? (
+              <ChevronDown size={19} />
+            ) : (
+              <ChevronUp size={19} />
+            ))}
+        </button>
+        {close}
+      </div>
       <div className="sheet-scroll" inert={!open} aria-hidden={!open}>
         <div className="sheet-body" ref={content}>
           <SheetDragging.Provider value={dragging}>

@@ -1,4 +1,5 @@
 "use client";
+import { DisposalIllustration } from "@/components/disposal-illustration";
 import { mapHref } from "@/lib/student-navigation";
 import { useState } from "react";
 import { ChevronRight } from "lucide-react";
@@ -38,57 +39,56 @@ export default function Guide() {
     [item, choose] = useState<Waste | null>(null);
   if (mobile)
     return (
-          <main className="mobile-reading">
-            <div className="reading-heading">
-              <h1>분리배출 안내</h1>
-              <p>내용물을 비우고, 거점에 표시된 품목을 확인하세요.</p>
-            </div>
-            <div className="reading-scroll">
-              <div className="guide-grid">
-                {items.map((t) => (
-                  <button
-                    key={t}
-                    className={"kind-" + t}
-                    onClick={() => choose(t)}
-                    aria-haspopup="dialog"
-                  >
-                    <span className="station-icon">
-                      <ItemIcon kind={t} size={24} />
-                    </span>
-                    <strong>{labels[t]}</strong>
-                    <ChevronRight size={15} />
-                  </button>
-                ))}
+      <main className="mobile-reading">
+        <div className="reading-heading">
+          <h1>분리배출 안내</h1>
+          <p>내용물을 비우고, 거점에 표시된 품목을 확인하세요.</p>
+        </div>
+        <div className="reading-scroll">
+          <div className="guide-grid">
+            {items.map((t) => (
+              <button
+                key={t}
+                className={"kind-" + t}
+                onClick={() => choose(t)}
+                aria-haspopup="dialog"
+              >
+                <span className="station-icon">
+                  <ItemIcon kind={t} size={24} />
+                </span>
+                <strong>{labels[t]}</strong>
+                <ChevronRight size={15} />
+              </button>
+            ))}
+          </div>
+        </div>
+        <ConfirmDialog
+          sheet
+          open={!!item}
+          onOpenChange={(open) => {
+            if (!open) choose(null);
+          }}
+          title={item ? labels[item] : "배출 방법"}
+          description={item ? tips[item][0] : ""}
+          content={
+            item && (
+              <div className={"guide-detail kind-" + item}>
+                <DisposalIllustration item={item} />
+                <p>{tips[item][1]}</p>
               </div>
-            </div>
-            <ConfirmDialog
-              sheet
-              open={!!item}
-              onOpenChange={(open) => {
-                if (!open) choose(null);
-              }}
-              title={item ? labels[item] : "배출 방법"}
-              description={item ? tips[item][0] : ""}
-              content={
-                item && (
-                  <div className={"guide-detail kind-" + item}>
-                    <ItemIcon kind={item} size={24} />
-                    <p>{tips[item][1]}</p>
-                  </div>
-                )
-              }
+            )
+          }
+        >
+          {item && (
+            <Link
+              className="primary"
+              href={mapHref({ type: "filter", waste: item })}
             >
-              {item && (
-                <Link
-                  className="primary"
-                  href={mapHref({ type: "filter", waste: item })}
-                >
-                  {labels[item]} 수거함 찾기
-                </Link>
-              )}
-            </ConfirmDialog>
-          </main>
-
+              {labels[item]} 수거함 찾기
+            </Link>
+          )}
+        </ConfirmDialog>
+      </main>
     );
   return (
     <>
@@ -100,9 +100,7 @@ export default function Guide() {
         </p>
         {items.map((t) => (
           <article className="guide-row" key={t}>
-            <span className={"station-icon large kind-" + t}>
-              <ItemIcon kind={t} size={25} />
-            </span>
+            <DisposalIllustration item={t} />
             <div>
               <h2>{labels[t]}</h2>
               <strong>{tips[t][0]}</strong>

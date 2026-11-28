@@ -17,7 +17,7 @@ import {
   type Point,
   type Waste,
 } from "@/lib/model";
-import { ItemPicker } from "./common";
+import { ItemIcon, ItemPicker } from "./common";
 
 export type Draft = {
   step: 1 | 2 | 3;
@@ -196,6 +196,12 @@ export function RequestWizard({
             </select>
           </label>
         )}
+        {step === 2 && zone && (
+          <div className="proposal-summary">
+            <MapPin size={16} />
+            {zone.name}
+          </div>
+        )}
         {step === 2 && (
           <ItemPicker
             value={types}
@@ -209,7 +215,13 @@ export function RequestWizard({
                 <MapPin size={16} />
                 {zone?.name}
               </strong>
-              <p>{types.map((t) => labels[t]).join(" · ")}</p>
+              <p>
+                {types.map((t) => (
+                  <span key={t} className={"type-glyph kind-" + t}>
+                    <ItemIcon kind={t} size={14} /> {labels[t]}
+                  </span>
+                ))}
+              </p>
             </div>
             <label>
               건의 사유
