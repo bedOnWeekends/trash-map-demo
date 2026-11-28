@@ -137,14 +137,35 @@
   display: grid;
   gap: var(--space-xs);
 }
-.admin-members button,
+.admin-members {
+  grid-template-columns: minmax(0, 1fr);
+  padding: var(--space-2xs);
+}
+.admin-members .press-button {
+  min-height: 44px;
+  text-align: start;
+  --press-padding: var(--space-sm);
+}
+.admin-members .press-button:focus-visible {
+  outline-offset: 0;
+}
+.admin-members .press-face {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) 16px;
+  gap: var(--space-sm);
+}
+.admin-members .press-face > span {
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.admin-members .lucide-chevron-right {
+  color: var(--color-muted);
+}
 .inspect-item {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
   text-align: left;
-}
-.inspect-item {
   justify-content: space-between;
   border-top: 1px solid var(--color-rule);
   padding-block: var(--space-xs);

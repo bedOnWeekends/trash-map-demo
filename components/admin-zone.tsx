@@ -1,5 +1,5 @@
 import { useState, type Ref } from "react";
-import { MapPin, Plus } from "lucide-react";
+import { ChevronRight, MapPin, Plus } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { binPin } from "./student-stations";
 import { ItemIcon } from "./common";
@@ -108,7 +108,7 @@ export function ZoneReview({
                       (r) => "request:" + r.id === p.id,
                     );
                     return (
-                      <button
+                      <PressButton
                         type="button"
                         key={p.id}
                         onClick={() => {
@@ -116,7 +116,7 @@ export function ZoneReview({
                           close();
                         }}
                       >
-                        <ItemIcon kind={p.kind} />
+                        <ItemIcon kind={p.kind} size={20} />
                         <span>
                           {p.name}
                           <small>
@@ -127,7 +127,8 @@ export function ZoneReview({
                                 "건"}
                           </small>
                         </span>
-                      </button>
+                        <ChevronRight size={16} aria-hidden />
+                      </PressButton>
                     );
                   })}
               </div>
