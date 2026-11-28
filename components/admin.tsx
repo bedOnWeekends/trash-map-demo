@@ -1,4 +1,5 @@
 "use client";
+import { PressButton } from "./ui/press-button";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -22,7 +23,6 @@ import {
 } from "lucide-react";
 import {
   Shell,
-  Sync,
   LoadState,
   Notice,
   Footer,
@@ -94,10 +94,10 @@ export function Login() {
             />
           </label>
           {err && <p role="alert">{err}</p>}
-          <button className="primary wide" disabled={busy}>
+          <PressButton className="primary wide" disabled={busy}>
             로그인
             <ArrowRight size={16} />
-          </button>
+          </PressButton>
         </form>
       </main>
     </>
@@ -151,7 +151,7 @@ function Statistics({ s }: { s: Snapshot }) {
                 key={l}
                 data-level={l}
                 style={{
-                  flex: values.filter((v) => fillState(v) === l).length,
+                  flexGrow: values.filter((v) => fillState(v) === l).length,
                 }}
               />
             ))}
@@ -292,9 +292,9 @@ function Sensor({ s, b }: { s: Snapshot; b: Booth }) {
           value={pct}
           onChange={(e) => setDraft(Number(e.target.value))}
         />
-        <button className="primary" disabled={b.busy}>
+        <PressButton className="primary" disabled={b.busy}>
           측정값 적용
-        </button>
+        </PressButton>
       </form>
     </section>
   );
@@ -379,7 +379,7 @@ function ZoneReview({ rank, s, b }: { rank: Rank; s: Snapshot; b: Booth }) {
           {zone.name} 관리 구역
         </h2>
         {!draft && (
-          <button
+          <PressButton
             className="primary"
             disabled={!requests.length && !reports.length}
             onClick={() => {
@@ -389,7 +389,7 @@ function ZoneReview({ rank, s, b }: { rank: Rank; s: Snapshot; b: Booth }) {
           >
             <Plus size={16} />
             설치 위치 지정
-          </button>
+          </PressButton>
         )}
       </div>
       <CampusMap
@@ -479,7 +479,7 @@ function ZoneReview({ rank, s, b }: { rank: Rank; s: Snapshot; b: Booth }) {
             ))}
           </fieldset>
           <div className="actions">
-            <button
+            <PressButton
               type="button"
               onClick={() => {
                 setDraft(null);
@@ -487,8 +487,8 @@ function ZoneReview({ rank, s, b }: { rank: Rank; s: Snapshot; b: Booth }) {
               }}
             >
               취소
-            </button>
-            <button
+            </PressButton>
+            <PressButton
               className="primary"
               disabled={
                 !candidate ||
@@ -499,7 +499,7 @@ function ZoneReview({ rank, s, b }: { rank: Rank; s: Snapshot; b: Booth }) {
               }
             >
               승인 대상 확인
-            </button>
+            </PressButton>
           </div>
         </form>
       )}
@@ -516,7 +516,7 @@ function ZoneReview({ rank, s, b }: { rank: Rank; s: Snapshot; b: Booth }) {
           "건을 이번 설치안에 반영합니다."
         }
       >
-        <button
+        <PressButton
           className="primary"
           disabled={b.busy}
           onClick={async () => {
@@ -541,7 +541,7 @@ function ZoneReview({ rank, s, b }: { rank: Rank; s: Snapshot; b: Booth }) {
           }}
         >
           설치 승인
-        </button>
+        </PressButton>
       </ConfirmDialog>
       {!draft && requests.length > 0 && (
         <details className="queue">
@@ -565,7 +565,7 @@ function ZoneReview({ rank, s, b }: { rank: Rank; s: Snapshot; b: Booth }) {
                 </div>
                 <div>
                   {r.status === "pending" && (
-                    <button
+                    <PressButton
                       disabled={b.busy}
                       onClick={() =>
                         b.mutate(
@@ -576,9 +576,9 @@ function ZoneReview({ rank, s, b }: { rank: Rank; s: Snapshot; b: Booth }) {
                       }
                     >
                       검토 시작
-                    </button>
+                    </PressButton>
                   )}
-                  <button
+                  <PressButton
                     disabled={b.busy}
                     onClick={() =>
                       b.mutate(
@@ -589,7 +589,7 @@ function ZoneReview({ rank, s, b }: { rank: Rank; s: Snapshot; b: Booth }) {
                     }
                   >
                     반려
-                  </button>
+                  </PressButton>
                 </div>
               </motion.div>
             ))}
@@ -715,7 +715,7 @@ function Dashboard({ b, s }: { b: Booth; s: Snapshot }) {
                   </small>
                 </div>
                 {x.status === "approved" && (
-                  <button
+                  <PressButton
                     disabled={b.busy}
                     onClick={() =>
                       b.mutate(
@@ -727,7 +727,7 @@ function Dashboard({ b, s }: { b: Booth; s: Snapshot }) {
                   >
                     <Check size={15} />
                     설치 완료
-                  </button>
+                  </PressButton>
                 )}
               </motion.div>
             ))}
@@ -735,10 +735,10 @@ function Dashboard({ b, s }: { b: Booth; s: Snapshot }) {
         </section>
       </div>
       <div className="reset-area">
-        <button onClick={() => setReset(true)}>
+        <PressButton onClick={() => setReset(true)}>
           <RotateCcw size={16} />
           전역 데모 초기화
-        </button>
+        </PressButton>
       </div>
       <ConfirmDialog
         open={reset}
@@ -746,7 +746,7 @@ function Dashboard({ b, s }: { b: Booth; s: Snapshot }) {
         title="전체 데모를 초기화할까요?"
         description="모든 접속 기기의 건의, 신고, 센서값, 설치 이력이 초기 시드로 복원됩니다. 이 작업은 되돌릴 수 없습니다."
       >
-        <button
+        <PressButton
           className="danger"
           disabled={b.busy}
           onClick={async () => {
@@ -761,7 +761,7 @@ function Dashboard({ b, s }: { b: Booth; s: Snapshot }) {
           }}
         >
           전체 데이터 초기화
-        </button>
+        </PressButton>
       </ConfirmDialog>
     </>
   );
@@ -779,8 +779,8 @@ export default function Admin() {
             <h1>관리자 대시보드</h1>
           </div>
           <div className="actions">
-            <Sync text={b.error ? "연결 확인 필요" : b.sync} />
-            <button
+
+            <PressButton
               onClick={async () => {
                 const r = await fetch("/api/admin/logout", {
                   method: "POST",
@@ -793,7 +793,7 @@ export default function Admin() {
             >
               <LogOut size={16} />
               로그아웃
-            </button>
+            </PressButton>
           </div>
         </div>
         <div className="admin-links">

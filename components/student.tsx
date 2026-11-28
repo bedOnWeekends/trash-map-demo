@@ -1,4 +1,5 @@
 "use client";
+import { PressButton } from "./ui/press-button";
 import { useCallback, useState } from "react";
 import {
   ArrowLeft,
@@ -12,7 +13,7 @@ import {
 } from "lucide-react";
 import { useInstalledBins } from "./motion/data";
 import CampusMap, { type Pin } from "./campus-map";
-import { Shell, Sync, Footer, Notice, LoadState, ItemPicker } from "./common";
+import { Shell, Footer, Notice, LoadState, ItemPicker } from "./common";
 import {
   BinDetail,
   StationList,
@@ -34,7 +35,7 @@ import {
   type Point,
 } from "@/lib/model";
 function StudentScreen({ booth }: { booth: Booth }) {
-  const { data, error, sync, mutate, busy, notice, notify, refresh } = booth;
+  const { data, error, mutate, busy, notice, notify, refresh } = booth;
   const [query, search] = useState(""),
     [filter, setFilter] = useState<Waste | null>(null),
     [selected, select] = useState(""),
@@ -106,7 +107,7 @@ function StudentScreen({ booth }: { booth: Booth }) {
             </div>
             <h1>분리수거 지도</h1>
           </div>
-          <Sync text={error ? "연결 확인 필요" : sync} />
+
         </div>
         <div className="map-workbench">
           <section
@@ -192,7 +193,7 @@ function StudentScreen({ booth }: { booth: Booth }) {
                           rows={3}
                         />
                       </label>
-                      <button
+                      <PressButton
                         className="primary wide"
                         disabled={
                           !point ||
@@ -205,7 +206,7 @@ function StudentScreen({ booth }: { booth: Booth }) {
                       >
                         건의 제출
                         <ArrowRight size={16} />
-                      </button>
+                      </PressButton>
                     </form>
                   </>
                 ) : current ? (
@@ -235,21 +236,21 @@ function StudentScreen({ booth }: { booth: Booth }) {
                       />
                     </label>
                     <div className="chips filter" aria-label="품목 필터">
-                      <button
+                      <PressButton
                         aria-pressed={!filter}
                         onClick={() => setFilter(null)}
                       >
                         전체
-                      </button>
+                      </PressButton>
                       {items.map((t) => (
-                        <button
+                        <PressButton
                           key={t}
                           aria-pressed={filter === t}
                           onClick={() => setFilter(filter === t ? null : t)}
                         >
                           <i className={"dot kind-" + t} />
                           {labels[t]}
-                        </button>
+                        </PressButton>
                       ))}
                     </div>
                     <div className="list-heading">
@@ -280,14 +281,14 @@ function StudentScreen({ booth }: { booth: Booth }) {
             )}
             {!requesting && !collapsed && (
               <div className="side-action">
-                <button
+                <PressButton
                   className="primary wide"
                   onClick={start}
                   disabled={!data}
                 >
                   <Plus size={18} />
                   추가 설치 건의
-                </button>
+                </PressButton>
               </div>
             )}
           </section>

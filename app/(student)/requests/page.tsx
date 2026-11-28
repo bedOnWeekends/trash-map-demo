@@ -9,7 +9,7 @@ import { duration, tween } from "@/lib/motion";
 import type { RequestRow } from "@/lib/model";
 import Link from "next/link";
 import { ClipboardList, ArrowRight, ChevronDown } from "lucide-react";
-import { Shell, Footer, LoadState, Sync } from "@/components/common";
+import { Shell, Footer, LoadState } from "@/components/common";
 import { labels, timeText, zoneName } from "@/lib/model";
 export default function Requests() {
   const booth = useStudentBooth();
@@ -58,7 +58,7 @@ function DesktopRequests({ b }: { b: Booth }) {
       <main className="reading">
         <div className="page-heading">
           <h1>내 설치 건의</h1>
-          <Sync text={b.error ? "연결 확인 필요" : b.sync} />
+
         </div>
         <p className="intro">
           이 브라우저에서 접수한 건의와 처리 상태를 확인하세요.

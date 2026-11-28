@@ -1,4 +1,5 @@
 "use client";
+import { PressButton } from "./ui/press-button";
 import { useState } from "react";
 import {
   LoaderCircle,
@@ -197,16 +198,16 @@ export function RequestWizard({
         </div>
         <div className="wizard-actions">
           {step > 1 && (
-            <button
+            <PressButton
               type="button"
               disabled={busy}
               onClick={() => change({ ...draft, step: step === 3 ? 2 : 1 })}
             >
               <ArrowLeft size={16} />
               이전
-            </button>
+            </PressButton>
           )}
-          <button type="submit" className="primary" disabled={!valid || busy}>
+          <PressButton type="submit" className="primary" disabled={!valid || busy}>
             {step === 3 ? (busy ? "접수 중…" : "건의 제출") : "다음"}
             {busy ? (
               <LoaderCircle className="pending-icon" size={16} />
@@ -215,7 +216,7 @@ export function RequestWizard({
             ) : (
               <ArrowRight size={16} />
             )}
-          </button>
+          </PressButton>
         </div>
       </div>
     </form>

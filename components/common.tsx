@@ -1,4 +1,5 @@
 "use client";
+import { PressButton } from "./ui/press-button";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { duration, tween } from "@/lib/motion";
 import type { NoticeKind } from "@/lib/use-booth";
@@ -10,7 +11,6 @@ import {
   ClipboardList,
   BookOpen,
   ArrowUpRight,
-  Radio,
   Recycle,
   Trash2,
   Milk,
@@ -80,13 +80,7 @@ export function StudentNav({ bottom = false }: { bottom?: boolean }) {
     </nav>
   );
 }
-export function Shell({
-  admin = false,
-  sync,
-}: {
-  admin?: boolean;
-  sync?: string;
-}) {
+export function Shell({ admin = false }: { admin?: boolean }) {
   return (
     <header className="top">
       <div className="top-inner">
@@ -107,22 +101,8 @@ export function Shell({
             {admin ? "관리자 콘솔" : "인하대학교 체험 부스"}
           </span>
         </span>
-        {sync && (
-          <span className="shell-sync">
-            <Sync text={sync} />
-          </span>
-        )}
       </div>
     </header>
-  );
-}
-export function Sync({ text }: { text: string }) {
-  if (!text) return null;
-  return (
-    <span className="sync">
-      <Radio size={15} />
-      {text}
-    </span>
   );
 }
 export function Notice({
@@ -185,7 +165,7 @@ export function ItemPicker({
       <legend>필요한 품목</legend>
       <div className="chips">
         {items.map((t) => (
-          <button
+          <PressButton
             key={t}
             type="button"
             aria-pressed={value.includes(t)}
@@ -200,7 +180,7 @@ export function ItemPicker({
             <ItemIcon kind={t} size={15} />
             {labels[t]}
             <Check className="pick-check" size={13} aria-hidden />
-          </button>
+          </PressButton>
         ))}
       </div>
     </fieldset>

@@ -1,5 +1,5 @@
 "use client";
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { ViewTransition, createContext, useContext, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { useBooth, useEpochKey, type Booth } from "@/lib/use-booth";
 import { StudentShell, useMobileStudent } from "./student-shell";
@@ -25,7 +25,8 @@ function MobileRoutes({
   if (onMap && !visitedMap) setVisitedMap(true);
   const epochKey = useEpochKey(booth.data?.epoch);
   return (
-    <StudentShell sync={booth.error ? "연결 확인 필요" : booth.sync}>
+    <StudentShell>
+      <ViewTransition name="student-content" default="none" update="tab-crossfade">
       <div className="student-viewport">
         {visitedMap && (
           <div className="student-map-view" inert={!onMap} aria-hidden={!onMap}>
@@ -36,6 +37,7 @@ function MobileRoutes({
           {children}
         </div>
       </div>
+      </ViewTransition>
     </StudentShell>
   );
 }

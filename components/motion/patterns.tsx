@@ -24,6 +24,7 @@ function Panel(props: HTMLMotionProps<"div">) {
   return (
     <motion.div
       {...props}
+      data-motion-paused={!present || undefined}
       inert={!present}
       aria-hidden={!present || undefined}
       style={{
@@ -97,18 +98,16 @@ function Placeholder({ kind }: { kind: "stations" | "requests" }) {
     return () => clearTimeout(t);
   }, [present]);
   return (
-    <div className="data-placeholder" aria-busy="true" aria-label="불러오는 중">
-      {shown && (
-        <div className={"skeleton " + kind} aria-hidden>
-          {[0, 1, 2].map((i) => (
-            <div className="skeleton-row" key={i}>
-              <i />
-              <span />
-              <span />
-            </div>
-          ))}
+    <div className={"data-placeholder placeholder-" + kind} aria-busy="true" aria-label="불러오는 중">
+      {shown && (kind === "stations" ? (
+        <div className="skeleton stations-placeholder" aria-hidden>
+          {[0, 1, 2].map(i => <div className="skeleton-row" key={i}><i/><span/><span/></div>)}
         </div>
-      )}
+      ) : (
+        <div className="skeleton requests" aria-hidden>
+          {[0, 1].map(i => <div key={i} className="skeleton-row request-placeholder"><i/><span/><span/></div>)}
+        </div>
+      ))}
     </div>
   );
 }

@@ -69,7 +69,7 @@ export function StationSheet({
       }
       setStops((old) =>
         old.length === choices.length &&
-        old.every((s, i) => s.height === choices[i].height)
+        old.every((s, i) => s.height === choices[i].height && s.snap === choices[i].snap)
           ? old
           : choices,
       );
@@ -84,13 +84,12 @@ export function StationSheet({
       el.style.removeProperty("--drag-height");
       el.removeAttribute("data-dragging");
     };
-  }, [layer]);
+  }, []);
   useLayoutEffect(() => {
     const el = layer.current;
     if (!el) return;
     el.style.setProperty("--sheet-height", active.height + "px");
-    if (stops.length > 1 && snap !== active.snap) onSnap(active.snap);
-  }, [layer, active, snap, stops, onSnap]);
+  }, [active.height]);
   function finish(e: PointerEvent<HTMLButtonElement>, cancelled = false) {
     const g = gesture.current;
     if (!g || e.pointerId !== g.id) return;

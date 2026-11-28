@@ -80,10 +80,10 @@ summary {
 button,
 a {
   transition:
-    background-color 0.16s,
-    color 0.16s,
-    transform 0.16s,
-    border-color 0.16s;
+    background-color var(--dur-micro),
+    color var(--dur-micro),
+    transform var(--dur-micro),
+    border-color var(--dur-micro);
 }
 button,
 .primary {
@@ -226,7 +226,6 @@ strong {
   color: var(--color-muted);
   font-size: 13px;
 }
-.sync,
 .status-tag {
   display: inline-flex;
   align-items: center;
@@ -237,11 +236,6 @@ strong {
   font-weight: 650;
   border-radius: 6px;
   padding: var(--space-2xs) var(--space-xs);
-}
-.sync {
-  background: var(--color-paper-3);
-  border: 1px solid var(--color-rule);
-  padding: var(--space-xs) var(--space-sm);
 }
 .workspace,
 .reading {
@@ -298,7 +292,7 @@ footer span,
   padding: var(--space-lg) 20px var(--space-sm);
   overflow: auto;
   flex: 1;
-  animation: slide-in 0.23s ease-out;
+  animation: slide-in var(--dur-standard) var(--motion-enter);
 }
 .side-action {
   padding: var(--space-sm) 20px;
@@ -690,7 +684,7 @@ footer {
   height: 100%;
   background: var(--level);
   transform-origin: left;
-  transition: transform 0.3s;
+  transition: transform var(--dur-panel) var(--motion-standard);
 }
 .fill-value {
   font-weight: 700;
@@ -932,7 +926,7 @@ input[type="checkbox"] {
   display: block;
   font-size: 33px;
   line-height: 1.4;
-  animation: slide-in 0.2s;
+  animation: slide-in var(--dur-fast);
 }
 .kpis small {
   margin-left: var(--space-2xs);
@@ -1196,9 +1190,6 @@ input[type="checkbox"] {
   .page-heading h1 {
     font-size: 28px;
   }
-  .sync {
-    font-size: 11px;
-  }
   .map-workbench {
     display: flex;
     flex-direction: column;
@@ -1401,7 +1392,7 @@ textarea {
   z-index: -1;
   transform-origin: bottom;
   transform: scaleY(var(--ratio));
-  transition: transform 0.28s;
+  transition: transform var(--dur-panel) var(--motion-standard);
 }
 .bars i::before,
 .trend-key span:before {
@@ -1426,10 +1417,6 @@ textarea {
   .page-heading:has(.actions) {
     align-items: flex-start;
     flex-direction: column;
-  }
-  /* In the stacked admin header, logout stays in the second action column. */
-  .page-heading .actions:not(:has(.sync)) {
-    padding-inline-start: 110.7px;
   }
   .queue-row {
     flex-wrap: wrap;

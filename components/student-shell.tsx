@@ -18,10 +18,8 @@ export function useMobileStudent() {
 }
 export function StudentShell({
   children,
-  sync,
 }: {
   children: ReactNode;
-  sync?: string;
 }) {
   const shell = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -54,7 +52,7 @@ export function StudentShell({
   }, []);
   return (
     <div className="student-app" ref={shell}>
-      <Shell sync={sync} />
+      <Shell />
       {children}
       <StudentNav bottom />
     </div>
