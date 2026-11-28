@@ -1138,7 +1138,7 @@
 .toast:has(.request-receipt, .receipt-pending) {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
-  width: min(24rem, calc(100vw - 2 * var(--space-md)));
+  width: min(24rem, 100%);
   box-sizing: border-box;
   gap: var(--space-xs);
   padding: var(--space-sm);
