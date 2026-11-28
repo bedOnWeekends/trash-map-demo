@@ -13,6 +13,36 @@ function tab(page: Page, path: string) {
   return page.locator(`.student-tabs a[href="${path}"]`);
 }
 
+async function zoom(page: Page, name: string) {
+  // Observe the real receiver used by the zoom button without exposing the SDK
+  // instance in the application. The first read restores the native method.
+  const probe =
+    liveURL &&
+    (await page.evaluateHandle(() => {
+      const proto = kakao.maps.Map.prototype;
+      const original = proto.getLevel;
+      const seen: { map?: kakao.maps.Map } = {};
+      proto.getLevel = function () {
+        proto.getLevel = original;
+        seen.map = this;
+        return original.call(this);
+      };
+      return seen;
+    }));
+  await page.getByRole("button", { name }).tap();
+  return probe
+    ? probe.evaluateHandle(({ map }) => {
+        if (!map) throw Error("Zoom did not reach the Kakao map");
+        return map;
+      })
+    : null;
+}
+
+function cameraState(map: kakao.maps.Map) {
+  const center = map.getCenter();
+  return [center.getLat(), center.getLng(), map.getLevel()];
+}
+
 async function checkReadingPage(page: Page, title: string, info: TestInfo) {
   const reading = page.locator(".mobile-reading");
   await expect(reading.getByRole("heading", { name: title })).toBeVisible();
@@ -71,7 +101,7 @@ test("반복 탭 전환과 방문 기록 이동 후 활성 페이지만 그려�
       host.append(tile);
     });
   }
-  await page.getByRole("button", { name: "지도 확대" }).tap();
+  const sdk = await zoom(page, "지도 축소");
   const filter = page
     .locator(".quick-filters")
     .getByRole("button", { name: "일반쓰레기" });
@@ -100,6 +130,7 @@ test("반복 탭 전환과 방문 기록 이동 후 활성 페이지만 그려�
     expect(await positions()).toEqual(previous);
   }).toPass();
   const camera = await positions();
+  const coordinates = await sdk?.evaluate(cameraState);
 
   for (let pass = 0; pass < 2; pass++) {
     await tab(page, "/requests").tap();
@@ -115,6 +146,7 @@ test("반복 탭 전환과 방문 기록 이동 후 활성 페이지만 그려�
     await expect(page.locator(".student-page-view")).toBeHidden();
     expect(await host!.evaluate((n) => n.isConnected)).toBe(true);
     expect(await positions()).toEqual(camera);
+    if (sdk) expect(await sdk.evaluate(cameraState)).toEqual(coordinates);
   }
 
   await tab(page, "/requests").tap();
@@ -125,4 +157,11 @@ test("반복 탭 전환과 방문 기록 이동 후 활성 페이지만 그려�
   await checkReadingPage(page, "내 설치 건의", info);
   await page.goForward();
   await checkReadingPage(page, "분리배출 안내", info);
+  await tab(page, "/").tap();
+  if (sdk) {
+    const current = await zoom(page, "지도 확대");
+    expect(await sdk.evaluate((first, last) => first === last, current!)).toBe(
+      true,
+    );
+  }
 });
