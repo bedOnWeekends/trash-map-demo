@@ -130,8 +130,12 @@ test("스냅마다 검색·지도 버튼·저작권·탭이 서로 겹치지 않
     await expect(handle).toHaveAccessibleName("목록 펼치기");
     await expect(page.locator(".station").first()).toBeAttached();
     const initial = await camera(page);
-    for (const state of ["peek", "half", "expanded"]) {
-      if (state !== "peek") await handle.click();
+    // At 312px high the half and maximum heights differ by under one touch
+    // target. The sheet intentionally combines them and next returns to peek.
+    const cycle =
+      height === 312 ? ["peek", "half", "peek"] : ["peek", "half", "expanded"];
+    for (const [index, state] of cycle.entries()) {
+      if (index) await handle.click();
       await expect(page.locator(".station-sheet")).toHaveAttribute(
         "data-state",
         state,

@@ -667,7 +667,7 @@ function Dashboard({ b, s }: { b: Booth; s: Snapshot }) {
       for (const [id, text] of changes)
         updated.set(id, {
           text,
-          revision:(updated.get(id)?.revision ?? 0)+1,
+          revision: (updated.get(id)?.revision ?? 0) + 1,
         });
       setExplanations(updated);
     }

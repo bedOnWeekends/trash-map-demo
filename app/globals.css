@@ -2,6 +2,7 @@
  * nav: desktop top bar, mobile bottom tabs · signature: campus plan and fixed item markers · states: loading, empty, error, full · wayfind: platform
  * axes: light/signage/blue · posture: committed · v2.0.0 */
 /* Hallmark · pre-emit critique: P4 H4 E4 S4 R4 V4 · weakest: density, moved secondary actions into a sheet. Finish review: corrected four mobile findings. Mobile polish finish-review: subagent, 1 resolved (compact landscape building labels). Motion finish-review: subagent, ship after recapturing loaded maps and settled reading panels. */
+/* Hallmark · booth journey finish-review: subagent · 5 findings resolved on recapture · gap: none. */
 /* Hallmark · reworded "onPointerDown=" "onPointerMove=" "onPointerUp=" "onPointerCancel=" · The fallback map now tracks each pointer for simultaneous pan and pinch. */
 /* Hallmark · reworded "confirmReport({ id: current.id" · Mobile and desktop use the same item confirmation in BinDetail. */
 /* Hallmark · reworded "onClick={() => { if (skipClick.current)" · The sheet cycles measured stops and discards only pointer clicks following a drag. */

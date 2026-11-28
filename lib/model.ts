@@ -155,7 +155,13 @@ export const timeText = (d: string) =>
 
 const normalize = (value: string) =>
   value.normalize("NFKC").trim().toLowerCase();
-const itemWords = new Map(items.flatMap(item => [item, ...normalize(labels[item]).split(/[·\s]+/)].map(word => [word, item] as const)));
+const itemWords = new Map(
+  items.flatMap((item) =>
+    [item, ...normalize(labels[item]).split(/[·\s]+/)].map(
+      (word) => [word, item] as const,
+    ),
+  ),
+);
 export function searchBins(bins: Bin[], query: string, filter: Waste | null) {
   const tokens = normalize(query).split(/\s+/).filter(Boolean);
   return bins.filter((bin) => {
@@ -166,9 +172,11 @@ export function searchBins(bins: Bin[], query: string, filter: Waste | null) {
       bin.location_description,
       ...bin.waste_types.flatMap((item) => [labels[item], item]),
     ].map(normalize);
-    return tokens.every(token => {
-      const item=itemWords.get(token);
-      return item ? bin.waste_types.includes(item) : fields.some(field=>field.includes(token));
+    return tokens.every((token) => {
+      const item = itemWords.get(token);
+      return item
+        ? bin.waste_types.includes(item)
+        : fields.some((field) => field.includes(token));
     });
   });
 }
