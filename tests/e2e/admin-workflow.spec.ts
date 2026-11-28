@@ -109,6 +109,48 @@ test("실제 변경 행의 강조, 선택 유지, 건물별 초안과 최신 승
   await expect(page.getByLabel("신규 거점명")).toHaveValue("본관 후보");
   expect(posts).toBe(1);
 });
+test("지도 그룹의 짧은 거점과 긴 건의는 동일한 열을 사용하고 키보드로 선택된다", async ({
+  page,
+}) => {
+  const s = boothFixture();
+  s.requests[0].reason =
+    "출입구에 모인 종이 상자를 수거해 주세요. " +
+    "종이수거함설치건의".repeat(6);
+  await open(page, s);
+  await page.locator('.pin[data-group-size="2"]').click();
+  const rows = page.locator(".admin-members button");
+  await expect(rows).toHaveCount(2);
+  for (const viewport of [
+    { width: 1366, height: 768 },
+    { width: 320, height: 568 },
+  ]) {
+    await page.setViewportSize(viewport);
+    const [short, long] = await rows.evaluateAll((buttons) =>
+      buttons.map((button) => {
+        const face = button.querySelector(".press-face")!;
+        return {
+          columns: Array.from(face.children, (child) => {
+            const { x, width } = child.getBoundingClientRect();
+            return [x, width];
+          }),
+          height: face.clientHeight,
+          overflow: face.scrollWidth > face.clientWidth,
+        };
+      }),
+    );
+    expect(long.columns).toEqual(short.columns);
+    expect(short.columns[0][1]).toBe(20);
+    expect(short.columns[2][1]).toBe(16);
+    expect(long.height).toBeGreaterThan(short.height);
+    expect(long.overflow).toBe(false);
+  }
+  await rows.first().focus();
+  await page.keyboard.press("Tab");
+  await expect(rows.last()).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.locator(".inspection")).toContainText(s.requests[0].reason);
+});
 test("겹친 건의와 거점의 신고를 구분하고 센서 임시값·0%·저장 결과를 대상별로 확인한다", async ({
   page,
 }) => {
