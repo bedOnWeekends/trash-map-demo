@@ -57,11 +57,27 @@ export function StationSheet({
       // Measure unconstrained content, including its padding, even while the viewport is collapsed.
       const peek = button.offsetHeight + 2;
       const available = Math.max(peek, el.clientHeight);
-      const max = Math.min(
-        peek + body.offsetHeight,
-        Math.max(peek, Math.min(Math.floor(available * 0.88), available - 58)),
+      // In landscape the sheet owns its own column; expanding it cannot cover
+      // the map controls beside it. Reserve the vertical map band in portrait.
+      const besideMap = matchMedia(
+        "(orientation: landscape) and (max-height: 540px)",
+      ).matches;
+      const ceiling = besideMap
+        ? Math.floor(available * 0.95)
+        : Math.min(Math.floor(available * 0.88), available - 58);
+      const max = Math.min(peek + body.offsetHeight, Math.max(peek, ceiling));
+      const first = body.querySelector<HTMLElement>(
+        ".station-slot:not([inert]) .station",
       );
-      const half = Math.min(max, Math.max(peek, Math.round(available * 0.5)));
+      const tools = body.querySelector<HTMLElement>(".sheet-tools");
+      const rowMinimum =
+        first && besideMap
+          ? peek + (tools?.offsetHeight ?? 0) + first.offsetHeight + 4
+          : peek;
+      const half = Math.min(
+        max,
+        Math.max(rowMinimum, Math.round(available * 0.5)),
+      );
       const choices: Stop[] = [{ snap: "peek", height: peek }];
       if (max > peek) {
         choices.push({ snap: "half", height: max - half < 44 ? max : half });

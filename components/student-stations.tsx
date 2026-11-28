@@ -1,5 +1,6 @@
 "use client";
 import { useMotionPreference } from "@/components/motion/patterns";
+import Link from "next/link";
 import { PressButton } from "./ui/press-button";
 import { forwardRef, useContext, useLayoutEffect, useRef } from "react";
 import { AnimatePresence, motion, useIsPresent } from "motion/react";
@@ -9,6 +10,8 @@ import { ChevronRight, Check, LoaderCircle, TriangleAlert } from "lucide-react";
 import { ItemIcon, Fill } from "./common";
 import { ConfirmDialog } from "./ui/dialog";
 import {
+  alternatives,
+  fillState,
   labels,
   preferredItems,
   zoneName,
@@ -25,11 +28,15 @@ export const binPin = (b: Bin): Pin => ({
 
 export function BinDetail({
   current,
+  bins,
+  onAlternative,
   compact = false,
   preferred,
   confirmReport,
 }: {
   current: Bin;
+  bins: Bin[];
+  onAlternative: (bin: Bin, item: Waste) => void;
   compact?: boolean;
   preferred?: Waste | null;
   confirmReport: (r: ReportTarget) => void;
@@ -69,9 +76,124 @@ export function BinDetail({
             </PressButton>
           </div>
           <Fill value={current.fills[t]} />
+          {fillState(current.fills[t]) === "가득 참" && (
+            <AlternativeList
+              bins={bins}
+              current={current}
+              item={t}
+              choose={onAlternative}
+            />
+          )}
         </div>
       ))}
     </>
+  );
+}
+function AlternativeList({
+  bins,
+  current,
+  item,
+  choose,
+}: {
+  bins: Bin[];
+  current: Bin;
+  item: Waste;
+  choose: (bin: Bin, item: Waste) => void;
+}) {
+  const options = alternatives(bins, current, item);
+  return (
+    <section
+      className="station-alternatives"
+      aria-label={labels[item] + " 대안"}
+    >
+      {options.length ? (
+        <>
+          <h4>대신 이용할 수 있는 수거함</h4>
+          {options.map((b) => (
+            <button
+              type="button"
+              className="station"
+              key={b.id}
+              onClick={() => choose(b, item)}
+            >
+              <span className={"station-icon kind-" + item}>
+                <ItemIcon kind={item} />
+              </span>
+              <span>
+                <strong>{b.name}</strong>
+                <small>
+                  {b.zone_id === current.zone_id
+                    ? "같은 건물"
+                    : zoneName(b.zone_id)}{" "}
+                  / {labels[item]} {b.fills[item]}% 여유
+                </small>
+              </span>
+              <ChevronRight size={16} />
+            </button>
+          ))}
+        </>
+      ) : (
+        <p>현재 여유 상태가 확인된 다른 수거함이 없어요.</p>
+      )}
+    </section>
+  );
+}
+export function GroupPicker({
+  bins,
+  context,
+  choose,
+  close,
+  picking = false,
+}: {
+  picking?: boolean;
+  bins: Bin[];
+  context: Waste | null;
+  choose: (pin: Pin) => void;
+  close: () => void;
+}) {
+  const zones = new Set(bins.map((b) => b.zone_id));
+  const title =
+    (zones.size === 1 ? zoneName(bins[0].zone_id) + " " : "") +
+    "수거 거점 " +
+    bins.length +
+    "곳";
+  return (
+    <ConfirmDialog
+      open
+      sheet
+      onOpenChange={(open) => {
+        if (!open) close();
+      }}
+      title={title}
+      description={
+        picking
+          ? "건의 위치로 사용할 거점을 선택하세요."
+          : "확인할 수거 거점을 선택하세요."
+      }
+      content={
+        <div className="group-options">
+          <StationList
+            filtered={bins}
+            filter={context}
+            choose={(p) => {
+              close();
+              choose(p);
+            }}
+          />
+        </div>
+      }
+    />
+  );
+}
+export function CoffeeChoice({ drink }: { drink: () => void }) {
+  return (
+    <section className="coffee-choice">
+      <h3>무엇을 버리려고 하시나요?</h3>
+      <PressButton type="button" onClick={drink}>
+        남은 커피·음료
+      </PressButton>
+      <Link href="/guide">빈 컵 재질별 배출 안내</Link>
+    </section>
   );
 }
 export function StationList({

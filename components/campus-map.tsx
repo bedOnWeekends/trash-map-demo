@@ -7,6 +7,7 @@ import {
   useImperativeHandle,
   useRef,
   useState,
+  type CSSProperties,
   type Ref,
   type ReactNode,
 } from "react";
@@ -20,6 +21,7 @@ import {
   Compass,
   TriangleAlert,
 } from "lucide-react";
+import { groupMarkers, markerHitSize } from "@/lib/marker-groups";
 import { zones, type Point, type Zone } from "@/lib/model";
 import buildings from "@/lib/footprints.json";
 import landscapeData from "@/lib/landscape.json";
@@ -164,6 +166,7 @@ function KakaoOverlay({
   children: ReactNode;
 }) {
   const [el] = useState(() => document.createElement("div"));
+  const overlayRef = useRef<kakao.maps.CustomOverlay | null>(null);
   useEffect(() => {
     const overlay = new kakao.maps.CustomOverlay({
       map,
@@ -171,38 +174,64 @@ function KakaoOverlay({
       content: el,
       clickable: true,
       yAnchor: 1,
-      zIndex: active ? 10 : pin.kind === "candidate" ? 8 : 3,
+      zIndex: 3,
     });
+    overlayRef.current = overlay;
     return () => overlay.setMap(null);
-  }, [map, el, pin.lat, pin.lng, pin.kind, active]);
+  }, [map, el, pin.lat, pin.lng]);
+  useEffect(() => {
+    overlayRef.current?.setZIndex(
+      active ? 10 : pin.kind === "candidate" ? 8 : 3,
+    );
+  }, [active, pin.kind, pin.lat, pin.lng, map]);
   return createPortal(children, el);
 }
 function PinControl({
   p,
   selected,
   onSelect,
+  members,
+  student,
 }: {
+  members?: Pin[];
+  student: boolean;
   p: Pin;
   selected?: string;
   onSelect: (p: Pin) => void;
 }) {
   const present = useIsPresent();
+  const chosen = p.id === selected || !!members?.some((m) => m.id === selected);
+  const label = members ? "수거 거점 " + members.length + "곳 선택" : p.name;
   return (
     <button
       type="button"
       inert={!present}
       aria-hidden={!present || undefined}
-      title={p.name}
+      title={label}
       data-new-installation={p.fresh || undefined}
-      aria-label={p.name}
-      aria-pressed={selected === p.id}
-      className={"pin kind-" + p.kind + (selected === p.id ? " chosen" : "")}
+      aria-label={label}
+      aria-pressed={chosen}
+      data-bin-ids={members ? members.map((m) => m.id).join(" ") : p.id}
+      data-group-size={members?.length}
+      data-selected-bin={chosen ? selected : undefined}
+      data-marker-id={p.id}
+      className={"pin kind-" + p.kind + (chosen ? " chosen" : "")}
       onClick={(e) => {
         e.stopPropagation();
         onSelect(p);
       }}
     >
-      <ItemIcon kind={p.kind} size={20} />
+      {student ? (
+        <span className="marker-face" key={chosen ? selected : "idle"}>
+          {members ? (
+            <strong>{members.length}곳</strong>
+          ) : (
+            <ItemIcon kind={p.kind} size={20} />
+          )}
+        </span>
+      ) : (
+        <ItemIcon kind={p.kind} size={20} />
+      )}
       {!!p.warning && (
         <span className="pin-count warn">
           <TriangleAlert size={10} />
@@ -251,7 +280,11 @@ export default function CampusMap({
   picking = false,
   mobile = false,
   cameraRef,
+  groupContent,
+  active = true,
 }: {
+  active?: boolean;
+  groupContent?: (ids: string[], close: () => void) => ReactNode;
   pins: Pin[];
   selected?: string;
   onSelect: (p: Pin) => void;
@@ -499,8 +532,9 @@ export default function CampusMap({
       zoom(nextScale);
       return;
     }
-    const start = performance.now();
+    let start: number | undefined;
     function frame(time: number) {
+      start ??= time;
       const t = Math.min(1, (time - start) / 320),
         ease = 1 - (1 - t) ** 3;
       move({ x: pan.x + (x - pan.x) * ease, y: pan.y + (y - pan.y) * ease });
@@ -536,22 +570,85 @@ export default function CampusMap({
   };
   // A cold deep link can be consumed while the schematic is still on screen.
   // Replay just that explicit request after the native projection becomes ready.
+  const [, setProjectionLevel] = useState<number | null>(null);
+  const grouping = !!groupContent;
+  useEffect(() => {
+    if (!map || !grouping) return;
+    const update = () => setProjectionLevel(map.getLevel());
+    update();
+    kakao.maps.event.addListener(map, "zoom_changed", update);
+    return () => kakao.maps.event.removeListener(map, "zoom_changed", update);
+  }, [map, grouping]);
+  const projection = map?.getProjection();
+  const groups = groupContent
+    ? groupMarkers(
+        pins.filter((p) => p.kind !== "candidate"),
+        (p) => {
+          if (projection)
+            return projection.containerPointFromCoords(
+              new kakao.maps.LatLng(p.lat, p.lng),
+            );
+          const [x, y] = xy(p.lng, p.lat);
+          return { x: x * factor, y: y * factor };
+        },
+      )
+    : [];
+  const members = new Map(
+    groups.filter((g) => g.members.length > 1).map((g) => [g.id, g.members]),
+  );
+  const visiblePins = groupContent
+    ? [
+        ...groups.map((g) =>
+          g.members.length === 1
+            ? g.anchor
+            : { ...g.anchor, id: g.id, fresh: g.members.some((p) => p.fresh) },
+        ),
+        ...pins.filter((p) => p.kind === "candidate"),
+      ]
+    : pins;
+  const [openGroup, showGroup] = useState("");
+  const openMembers = members.get(openGroup);
+  if (openGroup && (!openMembers || !active)) showGroup("");
+  const movingNative = useRef(false);
   const pendingReveal = useRef<{ point: Point; visible: DOMRect } | null>(null);
   function reveal(point: Point, visible: DOMRect) {
     if (!map && !failure) pendingReveal.current = { point, visible };
 
     if (!surface.current) return;
     const r = surface.current.getBoundingClientRect();
-    const coord = map && new kakao.maps.LatLng(point.lat, point.lng);
+    // Reveal the plotted representative of this exact member at the current zoom.
+    const marker =
+      groups.find((g) =>
+        g.members.some((p) => p.id === ("id" in point ? point.id : undefined)),
+      )?.anchor ?? point;
+    const coord = map && new kakao.maps.LatLng(marker.lat, marker.lng);
     const projection = map?.getProjection();
-    const [gx, gy] = xy(point.lng, point.lat);
+    const [gx, gy] = xy(marker.lng, marker.lat);
     const screen =
       coord && projection
         ? projection.containerPointFromCoords(coord)
         : { x: (gx - ox) * factor, y: (gy - oy) * factor };
     const x = visible.x - r.x,
       y = visible.y - r.y;
+    const covered =
+      !mobile &&
+      [
+        ...surface.current.querySelectorAll<HTMLElement>(
+          ".map-caption,.map-controls,.north,.map-credit,.map-error",
+        ),
+      ].some((el) => {
+        const q = el.getBoundingClientRect(),
+          sx = screen.x + r.left,
+          sy = screen.y + r.top;
+        return (
+          sx + 24 > q.left &&
+          sx - 24 < q.right &&
+          sy > q.top &&
+          sy - markerHitSize < q.bottom
+        );
+      });
     if (
+      !covered &&
       screen.x > x + 24 &&
       screen.x < x + visible.width - 24 &&
       screen.y > y + 42 &&
@@ -565,7 +662,10 @@ export default function CampusMap({
         new kakao.maps.Point(r.width / 2 - dx, r.height / 2 - dy),
       );
       if (reduced) map.setCenter(goal);
-      else map.panTo(goal);
+      else {
+        movingNative.current = true;
+        map.panTo(goal);
+      }
     } else animateCamera(pan.x + dx, pan.y + dy);
   }
   const revealOnReady = useEffectEvent(() => {
@@ -580,8 +680,28 @@ export default function CampusMap({
   });
   useEffect(() => {
     if (map) {
+      const done = () => {
+        movingNative.current = false;
+      };
+      const interrupt = () => {
+        if (movingNative.current) {
+          done();
+          map.setCenter(map.getCenter());
+        }
+      };
+      const element = surface.current;
+      kakao.maps.event.addListener(map, "idle", done);
+      element?.addEventListener("pointerdown", interrupt, true);
+      element?.addEventListener("wheel", interrupt, {
+        capture: true,
+        passive: true,
+      });
       revealOnReady();
-      return;
+      return () => {
+        kakao.maps.event.removeListener(map, "idle", done);
+        element?.removeEventListener("pointerdown", interrupt, true);
+        element?.removeEventListener("wheel", interrupt, true);
+      };
     }
     const cancel = () => {
       pendingReveal.current = null;
@@ -597,16 +717,21 @@ export default function CampusMap({
   const pinButton = (pin: Pin) => (
     <PinControl
       p={pin}
+      student={!!groupContent}
+      members={members.get(pin.id)}
       selected={selected}
       onSelect={(p) => {
         cancelDeselect();
-        onSelect(p);
+        if (members.has(p.id)) showGroup(p.id);
+        else onSelect(p);
       }}
     />
   );
   return (
     <div
       className={"map-surface" + (picking ? " picking" : "")}
+      data-grouping={groupContent ? true : undefined}
+      style={{ "--marker-hit": markerHitSize + "px" } as CSSProperties}
       ref={surface}
       aria-label="캠퍼스 지도"
     >
@@ -790,7 +915,7 @@ export default function CampusMap({
             </span>
           ))}
           <AnimatePresence>
-            {pins.map((p) => (
+            {visiblePins.map((p) => (
               <motion.div
                 key={
                   p.kind === "candidate"
@@ -807,7 +932,11 @@ export default function CampusMap({
                       ? [motionScale.select, motionScale.emphasis, 1]
                       : 1,
                 }}
-                exit={{ opacity: 0, scale: 0.85 }}
+                exit={
+                  groupContent
+                    ? { opacity: 0, transition: { duration: 0 } }
+                    : { opacity: 0, scale: 0.85 }
+                }
                 transition={{
                   duration: reduced
                     ? 0
@@ -824,12 +953,15 @@ export default function CampusMap({
       )}
       {map && (
         <AnimatePresence>
-          {pins.map((p) => (
+          {visiblePins.map((p) => (
             <KakaoOverlay
               key={p.id}
               map={map}
               pin={p}
-              active={p.id === selected}
+              active={
+                p.id === selected ||
+                !!members.get(p.id)?.some((m) => m.id === selected)
+              }
             >
               <motion.div
                 key={p.kind === "candidate" ? p.lat + ":" + p.lng : p.id}
@@ -841,7 +973,11 @@ export default function CampusMap({
                       ? [motionScale.select, motionScale.emphasis, 1]
                       : 1,
                 }}
-                exit={{ opacity: 0, scale: 0.85 }}
+                exit={
+                  groupContent
+                    ? { opacity: 0, transition: { duration: 0 } }
+                    : { opacity: 0, scale: 0.85 }
+                }
                 transition={{
                   duration: reduced
                     ? 0
@@ -856,6 +992,11 @@ export default function CampusMap({
           ))}
         </AnimatePresence>
       )}
+      {openMembers &&
+        groupContent?.(
+          openMembers.map((m) => m.id),
+          () => showGroup(""),
+        )}
       <div className="map-caption">
         <Layers size={15} />
         {map ? "카카오맵" : "캠퍼스 배치도"}

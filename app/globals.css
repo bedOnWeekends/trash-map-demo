@@ -1424,3 +1424,92 @@ textarea {
     flex-wrap: wrap;
   }
 }
+
+/* The same bottom-centred hit box drives both the SDK and schematic projections. */
+.map-surface[data-grouping] .pin {
+  display: grid;
+  place-items: center;
+  position: relative;
+  width: var(--marker-hit);
+  height: var(--marker-hit);
+  transform: none;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  border-radius: 0;
+  color: var(--color-paper-3);
+  outline: 0;
+}
+.map-surface[data-grouping] .pin-anchor .pin {
+  position: absolute;
+  bottom: 0;
+  left: calc(var(--marker-hit) / -2);
+}
+.map-surface[data-grouping] .pin::before {
+  content: none;
+}
+.marker-face {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  background: var(--kind);
+  border: 2px solid var(--color-paper-3);
+  border-radius: 50% 50% 50% 8px;
+  transform: rotate(-45deg);
+  box-shadow: 0 2px 5px var(--pinshadow);
+}
+.marker-face svg {
+  transform: rotate(45deg);
+}
+.pin[data-group-size] .marker-face {
+  transform: none;
+  border-radius: var(--radius-pill);
+  min-width: 42px;
+  width: auto;
+  padding-inline: var(--space-2xs);
+  background: var(--color-accent);
+}
+.pin.chosen .marker-face,
+.pin:focus-visible .marker-face {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 2px;
+}
+.map-surface[data-grouping] .pin.chosen {
+  animation: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .pin.chosen .marker-face {
+    animation: marker-select var(--dur-emphasis) var(--motion-enter);
+  }
+  @keyframes marker-select {
+    from {
+      scale: 1.14;
+    }
+    to {
+      scale: 1;
+    }
+  }
+}
+.station-alternatives {
+  margin-top: var(--space-sm);
+}
+.station-alternatives p,
+.coffee-choice p {
+  margin-block: var(--space-xs);
+  font-size: 14px;
+}
+.coffee-choice {
+  padding-block: var(--space-sm);
+}
+.coffee-choice a,
+.coffee-choice button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-right: var(--space-sm);
+}
+.group-options {
+  max-height: min(55dvh, 400px);
+  overflow: auto;
+}

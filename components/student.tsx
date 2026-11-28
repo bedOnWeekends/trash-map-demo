@@ -15,12 +15,16 @@ import { useInstalledBins } from "./motion/data";
 import CampusMap, { type Pin, type MobileCamera } from "./campus-map";
 import { Shell, Footer, Notice, LoadState, ItemPicker } from "./common";
 import {
+  GroupPicker,
+  CoffeeChoice,
   BinDetail,
   EmptySearch,
   StationList,
   ReportDialog,
   binPin,
 } from "./student-stations";
+import { ConfirmDialog } from "./ui/dialog";
+import { useStationSearch } from "./use-station-search";
 import { MapIntentReceiver } from "./map-intent";
 import {
   emptyDraft,
@@ -41,6 +45,7 @@ import {
   searchBins,
   zoneAt,
   type Waste,
+  type Bin,
   type Point,
 } from "@/lib/model";
 function StudentScreen({ booth }: { booth: Booth }) {
@@ -62,7 +67,8 @@ function StudentScreen({ booth }: { booth: Booth }) {
     setEpoch(data.epoch);
     setDraft(savedDraft(data.epoch));
   }
-  const requesting = !!draft,
+  const [paused, pause] = useState(false);
+  const requesting = !!draft && !paused,
     { point, types, reason } = draft ?? emptyDraft;
   function edit(next: Draft | null) {
     saveDraft(data?.epoch, next);
@@ -72,13 +78,26 @@ function StudentScreen({ booth }: { booth: Booth }) {
     if (draft) edit({ ...draft, point });
   }
   const fresh = useInstalledBins(data?.bins, data?.epoch);
-  const bins = data?.bins ?? [],
-    filtered = searchBins(bins, query, filter);
+  const bins = data?.bins ?? [];
+  const [pickedWaste, prefer] = useState<Waste | null>(null),
+    [discard, askDiscard] = useState(false);
+  const {
+    filtered,
+    context,
+    intent: searchInfo,
+  } = useStationSearch(bins, query, filter, pickedWaste);
+  const coffee = searchInfo.coffee && !filter && !pickedWaste;
   const current = bins.find((b) => b.id === selected),
-    zone = point ? zoneAt(point) : null;
-  const clearSelection = useCallback(() => select(""), []);
+    zone = requesting && point ? zoneAt(point) : null;
+  const clearSelection = useCallback(() => {
+    select("");
+    prefer(null);
+  }, []);
   const choose = (p: Pin) => {
-    if (requesting) return;
+    if (requesting) {
+      pick(p);
+      return;
+    }
     select(p.id);
     collapse(false);
   };
@@ -88,6 +107,7 @@ function StudentScreen({ booth }: { booth: Booth }) {
       notify("캠퍼스 관리 구역 안을 선택해 주세요.");
       return;
     }
+    notify("");
     setPoint(p);
   };
   const pins: Pin[] = filtered.map((b) => ({
@@ -103,15 +123,30 @@ function StudentScreen({ booth }: { booth: Booth }) {
     });
   const back = () => {
     select("");
-    if(requesting)edit(null);
+    prefer(null);
+    if (requesting) pause(true);
   };
+  function reveal(p: Point) {
+    const rect = column.current
+      ?.querySelector(".map-surface")
+      ?.getBoundingClientRect();
+    if (rect) camera.current?.reveal(p, rect);
+  }
+  function alternative(bin: Bin, item: Waste) {
+    if (filter && filter !== item) setFilter(null);
+    if (!searchBins([bin], query, null).length) search("");
+    prefer(item);
+    select(bin.id);
+    reveal(bin);
+  }
   const start = () => {
+    pause(false);
     select("");
     edit(
       draft ??
         savedDraft(data?.epoch) ?? {
           ...emptyDraft,
-          types: filter ? [filter] : [],
+          types: context ? [context] : [],
         },
     );
     collapse(false);
@@ -129,7 +164,8 @@ function StudentScreen({ booth }: { booth: Booth }) {
             notify("요청한 거점을 확인할 수 없어요. 지도에서 다시 찾아주세요.");
             return;
           }
-          setDraft(null);
+          pause(true);
+          prefer(null);
           collapse(false);
           if (intent.type === "filter") {
             search("");
@@ -143,12 +179,7 @@ function StudentScreen({ booth }: { booth: Booth }) {
               setFilter(null);
             }
             select(bin.id);
-            requestAnimationFrame(() => {
-              const rect = column.current
-                ?.querySelector(".map-surface")
-                ?.getBoundingClientRect();
-              if (rect) camera.current?.reveal(bin, rect);
-            });
+            reveal(bin);
           }
         }}
       />
@@ -202,19 +233,24 @@ function StudentScreen({ booth }: { booth: Booth }) {
                             { ...point, types, reason },
                             "설치 건의를 접수했어요. 내 건의에서 확인할 수 있어요.",
                           )
-                        )
-                          back();
+                        ) {
+                          edit(null);
+                          select("");
+                        }
                       }}
                     >
                       <label>
                         가상 위치 선택
                         <select
-                          value=""
+                          value={zone?.id ?? ""}
                           onChange={(e) => {
                             const z = zones.find(
                               (z) => z.id === e.target.value,
                             );
-                            if (z) setPoint({ lat: z.lat, lng: z.lng });
+                            if (z) {
+                              pick(z);
+                              reveal(z);
+                            }
                           }}
                         >
                           <option value="">건물 중심으로 지정</option>
@@ -237,7 +273,13 @@ function StudentScreen({ booth }: { booth: Booth }) {
                       </p>
                       <ItemPicker
                         value={types}
-                        onChange={(types) => edit({ ...draft!, types })}
+                        onChange={(types) =>
+                          edit({
+                            ...draft!,
+                            types,
+                            step: point ? (types.length && reason ? 3 : 2) : 1,
+                          })
+                        }
                       />
                       <label>
                         건의 사유
@@ -246,7 +288,11 @@ function StudentScreen({ booth }: { booth: Booth }) {
                           maxLength={400}
                           required
                           onChange={(e) =>
-                            edit({ ...draft!, reason: e.target.value })
+                            edit({
+                              ...draft!,
+                              reason: e.target.value,
+                              step: point && types.length ? 3 : 1,
+                            })
                           }
                           placeholder="이 위치에 수거함이 필요한 이유"
                           rows={3}
@@ -254,7 +300,13 @@ function StudentScreen({ booth }: { booth: Booth }) {
                       </label>
                       <ReasonPresets
                         reason={reason}
-                        change={(reason) => edit({ ...draft!, reason })}
+                        change={(reason) =>
+                          edit({
+                            ...draft!,
+                            reason,
+                            step: point && types.length ? 3 : 1,
+                          })
+                        }
                       />
                       <PressButton
                         className="primary wide"
@@ -271,6 +323,15 @@ function StudentScreen({ booth }: { booth: Booth }) {
                         <ArrowRight size={16} />
                       </PressButton>
                     </form>
+                    <button
+                      className="back"
+                      onClick={() => {
+                        if (point || reason || types.length) askDiscard(true);
+                        else edit(null);
+                      }}
+                    >
+                      작성 취소
+                    </button>
                   </>
                 ) : current ? (
                   <>
@@ -279,7 +340,9 @@ function StudentScreen({ booth }: { booth: Booth }) {
                       거점 목록
                     </button>
                     <BinDetail
-                      preferred={filter}
+                      bins={bins}
+                      onAlternative={alternative}
+                      preferred={context}
                       current={current}
                       confirmReport={confirmReport}
                     />
@@ -296,13 +359,19 @@ function StudentScreen({ booth }: { booth: Booth }) {
                         aria-label="건물 및 수거함 검색"
                         placeholder="건물명 또는 수거함 검색"
                         value={query}
-                        onChange={(e) => search(e.target.value)}
+                        onChange={(e) => {
+                          prefer(null);
+                          search(e.target.value);
+                        }}
                       />
                     </label>
                     <div className="chips filter" aria-label="품목 필터">
                       <PressButton
                         aria-pressed={!filter}
-                        onClick={() => setFilter(null)}
+                        onClick={() => {
+                          prefer(null);
+                          setFilter(null);
+                        }}
                       >
                         전체
                       </PressButton>
@@ -310,7 +379,10 @@ function StudentScreen({ booth }: { booth: Booth }) {
                         <PressButton
                           key={t}
                           aria-pressed={filter === t}
-                          onClick={() => setFilter(filter === t ? null : t)}
+                          onClick={() => {
+                            prefer(null);
+                            setFilter(filter === t ? null : t);
+                          }}
                         >
                           <i className={"dot kind-" + t} />
                           {labels[t]}
@@ -319,7 +391,7 @@ function StudentScreen({ booth }: { booth: Booth }) {
                     </div>
                     <div className="list-heading">
                       <h3>
-                        {filter ? labels[filter] + " 수거 거점" : "수거 거점"}
+                        {context ? labels[context] + " 수거 거점" : "수거 거점"}
                       </h3>
                       <b>
                         {data ? (
@@ -333,7 +405,15 @@ function StudentScreen({ booth }: { booth: Booth }) {
                       {error ? (
                         <LoadState error={error} retry={refresh} />
                       ) : null}
-                      {data && filtered.length === 0 && (
+                      {coffee && (
+                        <CoffeeChoice
+                          drink={() => {
+                            search(searchInfo.drinkQuery);
+                            prefer(null);
+                          }}
+                        />
+                      )}
+                      {data && !coffee && filtered.length === 0 && (
                         <EmptySearch
                           query={query}
                           filter={filter}
@@ -342,9 +422,12 @@ function StudentScreen({ booth }: { booth: Booth }) {
                         />
                       )}
                       <StationList
-                        filter={filter}
+                        filter={context}
                         filtered={filtered}
-                        choose={choose}
+                        choose={(p) => {
+                          choose(p);
+                          reveal(p);
+                        }}
                       />
                     </ContentReveal>
                   </>
@@ -359,7 +442,9 @@ function StudentScreen({ booth }: { booth: Booth }) {
                   disabled={!data}
                 >
                   <Plus size={18} />
-                  추가 설치 건의
+                  {draft || savedDraft(data?.epoch)
+                    ? "작성 이어가기"
+                    : "추가 설치 건의"}
                 </PressButton>
               </div>
             )}
@@ -371,6 +456,15 @@ function StudentScreen({ booth }: { booth: Booth }) {
               onSelect={choose}
               onDeselect={requesting ? undefined : clearSelection}
               onPick={pick}
+              groupContent={(ids, close) => (
+                <GroupPicker
+                  picking={requesting}
+                  bins={filtered.filter((b) => ids.includes(b.id))}
+                  context={context}
+                  choose={choose}
+                  close={close}
+                />
+              )}
               cameraRef={camera}
               showZones="student"
               pickedZone={zone ?? undefined}
@@ -397,6 +491,23 @@ function StudentScreen({ booth }: { booth: Booth }) {
         text={notice}
         requestAction={booth.requestAction ? () => notify("") : undefined}
       />
+      <ConfirmDialog
+        open={discard}
+        onOpenChange={askDiscard}
+        title="건의 작성을 취소할까요?"
+        description="취소하면 작성한 위치, 품목과 사유가 지워집니다."
+      >
+        <PressButton onClick={() => askDiscard(false)}>계속 작성</PressButton>
+        <PressButton
+          className="primary"
+          onClick={() => {
+            edit(null);
+            askDiscard(false);
+          }}
+        >
+          작성 취소
+        </PressButton>
+      </ConfirmDialog>
       <ReportDialog
         booth={booth}
         report={report}

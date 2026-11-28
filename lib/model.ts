@@ -162,8 +162,28 @@ const itemWords = new Map(
     ),
   ),
 );
+for (const word of ["페트병", "pet병", "생수병"])
+  itemWords.set(word, "plastic");
+const buildingWords = new Map([["도서관", "정석학술정보관"]]);
+export function searchIntent(query: string) {
+  const words = normalize(query).split(/\s+/).filter(Boolean);
+  const types = new Set(
+    words.map((word) => itemWords.get(word)).filter((t): t is Waste => !!t),
+  );
+  return {
+    tokens: words.map((word) => buildingWords.get(word) ?? word),
+    waste: types.size === 1 ? [...types][0] : null,
+    coffee: words.includes("커피") && !types.size,
+    drinkQuery: words
+      .map((word) => (word === "커피" ? "음료" : word))
+      .join(" "),
+  };
+}
 export function searchBins(bins: Bin[], query: string, filter: Waste | null) {
-  const tokens = normalize(query).split(/\s+/).filter(Boolean);
+  const intent = searchIntent(query);
+  const tokens = intent.tokens.filter(
+    (t) => t !== "커피" || (!filter && !intent.waste),
+  );
   return bins.filter((bin) => {
     if (filter && !bin.waste_types.includes(filter)) return false;
     const fields = [
@@ -184,4 +204,41 @@ export function preferredItems(installed: Waste[], preferred?: Waste | null) {
   return preferred && installed.includes(preferred)
     ? [preferred, ...installed.filter((t) => t !== preferred)]
     : installed;
+}
+
+const availability = ["여유", "보통", "혼잡", "가득 참", "정보 없음"];
+export function stationOrder(bins: Bin[], waste: Waste, previous: string[]) {
+  const ids = new Set(bins.map((b) => b.id));
+  const kept = previous.filter((id) => ids.has(id));
+  const known = new Set(kept);
+  const additions = bins
+    .filter((b) => !known.has(b.id))
+    .sort(
+      (a, b) =>
+        availability.indexOf(fillState(a.fills[waste])) -
+        availability.indexOf(fillState(b.fills[waste])),
+    );
+  return [...kept, ...additions.map((b) => b.id)];
+}
+export function alternatives(bins: Bin[], current: Bin, waste: Waste) {
+  if (fillState(current.fills[waste]) !== "가득 참") return [];
+  const longitudeScale = Math.cos((current.lat * Math.PI) / 180);
+  const distance = (b: Bin) =>
+    Math.hypot(b.lat - current.lat, (b.lng - current.lng) * longitudeScale);
+  return bins
+    .filter(
+      (b) =>
+        b.id !== current.id &&
+        b.waste_types.includes(waste) &&
+        fillState(b.fills[waste]) === "여유",
+    )
+    .sort(
+      (a, b) =>
+        Number(b.zone_id === current.zone_id) -
+          Number(a.zone_id === current.zone_id) ||
+        distance(a) - distance(b) ||
+        a.fills[waste]! - b.fills[waste]! ||
+        a.id.localeCompare(b.id),
+    )
+    .slice(0, 2);
 }
