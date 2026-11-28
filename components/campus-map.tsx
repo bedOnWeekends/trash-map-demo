@@ -1,4 +1,5 @@
 "use client";
+import { useMotionPreference } from "@/components/motion/patterns";
 import {
   useCallback,
   useEffect,
@@ -10,12 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import {
-  AnimatePresence,
-  motion,
-  useIsPresent,
-  useReducedMotion,
-} from "motion/react";
+import { AnimatePresence, motion, useIsPresent } from "motion/react";
 import {
   Plus,
   Minus,
@@ -327,7 +323,7 @@ export default function CampusMap({
       } else if (!handledGesture) singleTap();
     },
   );
-  const reduced = useReducedMotion();
+  const reduced = useMotionPreference();
   useEffect(() => {
     let cancelled = false;
     let observer: ResizeObserver | undefined;

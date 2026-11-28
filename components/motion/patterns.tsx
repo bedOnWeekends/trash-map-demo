@@ -4,17 +4,46 @@ import {
   motion,
   MotionConfig,
   useIsPresent,
-  useReducedMotion,
   type HTMLMotionProps,
 } from "motion/react";
-import { useEffect, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 import { duration, distance, tween, slideFade } from "@/lib/motion";
 
+// Motion's hook samples the preference on mount. One media subscription also
+// updates mounted panels and cancels their in-flight local row projections.
+const reducedQuery = "(prefers-reduced-motion: reduce)";
+const MotionPreference = createContext(false);
+function subscribePreference(change: () => void) {
+  const media = window.matchMedia(reducedQuery);
+  media.addEventListener("change", change);
+  return () => media.removeEventListener("change", change);
+}
+const readPreference = () => window.matchMedia(reducedQuery).matches;
+const serverPreference = () => false;
+export const useMotionPreference = () => useContext(MotionPreference);
+
 export function MotionPolicy({ children }: { children: ReactNode }) {
+  const reduced = useSyncExternalStore(
+    subscribePreference,
+    readPreference,
+    serverPreference,
+  );
   return (
-    <MotionConfig reducedMotion="user" transition={tween()}>
-      {children}
-    </MotionConfig>
+    <MotionPreference.Provider value={reduced}>
+      <MotionConfig
+        reducedMotion={reduced ? "always" : "never"}
+        transition={tween()}
+      >
+        {children}
+      </MotionConfig>
+    </MotionPreference.Provider>
   );
 }
 
@@ -49,7 +78,7 @@ export function Swap({
   direction?: number;
   children?: ReactNode;
 }) {
-  const reduced = useReducedMotion();
+  const reduced = useMotionPreference();
   return (
     <div className="motion-swap">
       <AnimatePresence initial={false} custom={reduced ? 0 : direction}>
@@ -70,7 +99,7 @@ export function Swap({
   );
 }
 export function AnimatedNumber({ value }: { value: number }) {
-  const reduced = useReducedMotion();
+  const reduced = useMotionPreference();
   return (
     <span className="rolling-number">
       <span className="visually-hidden">{value}</span>
@@ -139,7 +168,7 @@ export function ContentReveal({
   kind: "stations" | "requests";
   children: ReactNode;
 }) {
-  const reduced = useReducedMotion();
+  const reduced = useMotionPreference();
   const phase = ready ? "content" : error ? "error" : "loading";
   return (
     <Swap

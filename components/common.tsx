@@ -1,6 +1,7 @@
 "use client";
+import { useMotionPreference } from "@/components/motion/patterns";
 import { PressButton } from "./ui/press-button";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { duration, tween } from "@/lib/motion";
 import type { NoticeKind } from "@/lib/use-booth";
 import Link from "next/link";
@@ -50,7 +51,7 @@ export function ItemIcon({
 }
 export function StudentNav({ bottom = false }: { bottom?: boolean }) {
   const pathname = usePathname();
-  const reduced = useReducedMotion();
+  const reduced = useMotionPreference();
   return (
     <nav className={bottom ? "student-tabs" : undefined} aria-label="학생 메뉴">
       {(

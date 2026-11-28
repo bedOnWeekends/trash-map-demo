@@ -3,8 +3,11 @@ import { ViewTransition } from "react";
 import { useMobileStudent } from "@/components/student-shell";
 import { useStudentBooth } from "@/components/student-layout";
 import type { Booth } from "@/lib/use-booth";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ContentReveal } from "@/components/motion/patterns";
+import { AnimatePresence, motion } from "motion/react";
+import {
+  ContentReveal,
+  useMotionPreference,
+} from "@/components/motion/patterns";
 import { StatusLabel, useChangeHighlight } from "@/components/motion/data";
 import { duration, distance, tween } from "@/lib/motion";
 import type { RequestRow } from "@/lib/model";
@@ -94,7 +97,7 @@ function DesktopRequests({ b }: { b: Booth }) {
 }
 
 function RequestEntry({ r, index }: { r: RequestRow; index: number }) {
-  const reduced = useReducedMotion();
+  const reduced = useMotionPreference();
   const ref = useChangeHighlight<HTMLDetailsElement>(r.status);
   return (
     <motion.details

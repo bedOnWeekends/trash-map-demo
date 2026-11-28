@@ -1,12 +1,8 @@
 "use client";
+import { useMotionPreference } from "@/components/motion/patterns";
 import { PressButton } from "./ui/press-button";
 import { forwardRef, useContext, useLayoutEffect, useRef } from "react";
-import {
-  AnimatePresence,
-  motion,
-  useIsPresent,
-  useReducedMotion,
-} from "motion/react";
+import { AnimatePresence, motion, useIsPresent } from "motion/react";
 import { duration, distance, ease, tween } from "@/lib/motion";
 import { SheetDragging } from "./station-sheet";
 import { ChevronRight, Check, LoaderCircle, TriangleAlert } from "lucide-react";
@@ -76,7 +72,7 @@ export function StationList({
   const list = useRef<HTMLDivElement>(null);
   const previous = useRef(new Map<string, number>());
   const drag = useContext(SheetDragging);
-  const reduce = useReducedMotion();
+  const reduce = useMotionPreference();
   const order = filtered.map((b) => b.id).join(",");
   useLayoutEffect(() => {
     // offsetTop uses list-local layout coordinates. Sheet movement and scroll
@@ -135,7 +131,7 @@ const StationRow = forwardRef<
 >(function StationRow({ bin: b, choose }, ref) {
   const present = useIsPresent();
   const drag = useContext(SheetDragging);
-  const reduce = useReducedMotion();
+  const reduce = useMotionPreference();
   return (
     <div
       ref={ref}

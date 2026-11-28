@@ -1,6 +1,7 @@
 "use client";
+import { useMotionPreference } from "@/components/motion/patterns";
 import { useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { Check } from "lucide-react";
 import { duration, tween } from "@/lib/motion";
 import { stateLabels, type RequestRow, type Bin } from "@/lib/model";
@@ -10,7 +11,7 @@ export function useChangeHighlight<T extends HTMLElement>(
 ) {
   const ref = useRef<T>(null);
   const previous = useRef(value);
-  const reduced = useReducedMotion();
+  const reduced = useMotionPreference();
   useEffect(() => {
     if (previous.current === value) return;
     previous.current = value;

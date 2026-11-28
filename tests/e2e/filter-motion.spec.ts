@@ -170,6 +170,7 @@ test("필터 중간 프레임과 최신 거점·시트·지도 상태가 일치�
     await expect(sheet.locator(".sheet-label .visually-hidden")).toHaveText(
       String(expected.length),
     );
+    expect(new Set(frames.map((f) => f.target)).size).toBeLessThanOrEqual(2);
     const heights = frames.map((f) => f.height);
     // A single selection may retarget from the old value once. A settled
     // expansion/shrink must not reverse direction inside that transition.
