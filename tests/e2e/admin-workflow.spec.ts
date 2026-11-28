@@ -120,6 +120,11 @@ test("지도 그룹의 짧은 거점과 긴 건의는 동일한 열을 사용하
   await page.locator('.pin[data-group-size="2"]').click();
   const rows = page.locator(".admin-members button");
   await expect(rows).toHaveCount(2);
+  await page.getByRole("dialog").evaluate(async (dialog) => {
+    await Promise.all(
+      dialog.getAnimations().map((animation) => animation.finished),
+    );
+  });
   for (const viewport of [
     { width: 1366, height: 768 },
     { width: 320, height: 568 },
