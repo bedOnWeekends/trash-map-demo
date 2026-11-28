@@ -73,7 +73,9 @@ export function StationSheet({
       const rowMinimum =
         first && besideMap
           ? peek + (tools?.offsetHeight ?? 0) + first.offsetHeight + 4
-          : peek;
+          : besideMap && body.querySelector(".empty-reveal, .coffee-choice")
+            ? max
+            : peek;
       const recommendation = body
         .querySelector(".item-detail")
         ?.querySelector(".station-alternatives .station");
