@@ -581,6 +581,13 @@ test("모바일 시트, 품목 신고, 작성 복원, 제출 및 실시간 갱�
     await expect(page.getByLabel("건의 사유")).toHaveValue(reason);
     await page.getByRole("button", { name: "건의 제출" }).click();
     await expect(page.getByRole("status")).toContainText("접수");
+    const receipt = page.locator(".map-space .toast:has(.request-receipt)");
+    await expect(receipt.locator("time")).toBeVisible();
+    await expect(receipt).toBeInViewport({ ratio: 0.99 });
+    const bounds = await receipt.boundingBox();
+    expect(bounds!.x).toBeGreaterThanOrEqual(0);
+    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+    await page.screenshot({ path: info.outputPath("receipt.png"), animations: "disabled" });
     await page.getByRole("link", { name: "내 건의 보기", exact: true }).click();
     await expect(page.locator(".request-entry").first()).toContainText("접수");
     await page.locator(".request-entry summary").first().click();
