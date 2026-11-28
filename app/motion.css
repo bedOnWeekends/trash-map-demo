@@ -428,23 +428,7 @@
   content: attr(data-value);
 }
 
-/* Only the old bitmap fades above the already interactive destination. */
-@media (prefers-reduced-motion: no-preference) {
-  .student-map-view[data-capture-departure]:not([inert]) {
-    view-transition-name: student-outgoing-map;
-    view-transition-class: tab-crossfade;
-  }
-}
 :root:has(.student-viewport) { view-transition-name: none; }
-::view-transition-group(.tab-crossfade),
-::view-transition-old(.tab-crossfade),
-::view-transition-new(.tab-crossfade) {
-  animation-duration: var(--dur-fast);
-  animation-timing-function: var(--motion-standard);
-  pointer-events: none;
-}
-:root:has(.student-viewport)::view-transition { pointer-events: none; }
-
 .station-slot {
   position: relative;
   z-index: 1;
@@ -527,12 +511,9 @@ button.filter-trigger .press-face { border: 0; border-inline-start: 1px solid va
 [aria-pressed="true"] .press-face .pick-check { opacity: 1; scale: 1; }
 
 @media (prefers-reduced-motion: reduce) {
-  ::view-transition-group(.tab-crossfade),
-  ::view-transition-old(.tab-crossfade),
-  ::view-transition-new(.tab-crossfade) { animation-duration: 0s; }
   .press-button:active:enabled > .press-face, .quick-filters button:active:enabled > .chip-pill { scale: 1; }
   .press-face, .quick-filters .chip-pill, .distribution i { transition: none; }
   .request-empty > * { animation: none; }
 }
 
-.mobile-reading { animation: veil-in var(--dur-fast) var(--motion-enter); }
+.mobile-reading > :is(.reading-heading,.reading-scroll) { animation: veil-in var(--dur-fast) var(--motion-enter); }

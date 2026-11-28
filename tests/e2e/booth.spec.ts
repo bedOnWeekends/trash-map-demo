@@ -101,11 +101,12 @@ test("세 독립 브라우저에서 신고, 위치 지정, 설치, 실시간 및
     await a.getByRole("button", { name: "추가 설치 건의" }).click();
     await a.getByLabel("가상 위치 선택").selectOption("five");
     await a.getByRole("button", { name: "종이", exact: true }).click();
-    await a.getByRole("button", { name: "남은 음료", exact: true }).click();
+    await expect(a.getByRole("button", { name: "남은 음료", exact: true })).toHaveAttribute("aria-pressed","true");
     await a.getByLabel("건의 사유").fill("부스 공개 시연");
     await a.getByRole("button", { name: "건의 제출" }).click();
     await expect(a.getByRole("status")).toContainText("설치 건의를 접수했어요");
     expect(await rank()).toBe(score + 5);
+    await expect(c.locator(".rank-explanation").filter({hasText:"설치 건의 접수"}).first()).toBeVisible();
     const proposal = {
       lat: five.lat + 0.00004,
       lng: five.lng,
@@ -163,6 +164,16 @@ test("세 독립 브라우저에서 신고, 위치 지정, 설치, 실시간 및
     await expect(a.getByText("설치 완료").first()).toBeVisible();
     await a.reload();
     await expect(a.getByText("부스 공개 시연")).toBeVisible();
+    const completed=(await snap(a)).requests.find(r=>r.reason==="부스 공개 시연")!;
+    expect(completed.installed_bin_id).toBe(newBin.id);
+    await a.setViewportSize({width:390,height:844});
+    const entry=a.locator(".request-entry").filter({hasText:"부스 공개 시연"});
+    await entry.locator("summary").click();
+    await entry.getByRole("link",{name:"설치된 수거함 보기"}).click();
+    await expect(a.locator(".sheet-label")).toHaveText(newBin.name);
+    await expect(a.getByRole("button",{name:newBin.name,exact:true})).toHaveAttribute("aria-pressed","true");
+    await a.setViewportSize({width:1320,height:900});
+    await a.goto(base+"/requests");
     // Exercise a report-only zone and a candidate offset from the reporting bin.
     const tech = rankings(installed).find((x) => x.zone.id === "tech")!;
     expect(tech.requests.length).toBe(0);
@@ -487,7 +498,7 @@ test("모바일 시트, 품목 신고, 작성 복원, 제출 및 실시간 갱�
     await expect(page.getByLabel("건의 사유")).toHaveValue(reason);
     await page.getByRole("button", { name: "건의 제출" }).click();
     await expect(page.getByRole("status")).toContainText("접수");
-    await page.getByRole("link", { name: "내 건의", exact: true }).click();
+    await page.getByRole("link", { name: "내 건의 보기", exact: true }).click();
     await expect(page.locator(".request-entry").first()).toContainText("접수");
     await page.locator(".request-entry summary").first().click();
     await expect(page.getByText(reason)).toBeVisible();

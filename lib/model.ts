@@ -31,6 +31,7 @@ export type RequestRow = Point & {
   zone_id: string;
   reason: string;
   requested_waste_types: Waste[];
+  installed_bin_id?: string | null;
   status: keyof typeof stateLabels;
   created_at: string;
 };
@@ -151,3 +152,28 @@ export const timeText = (d: string) =>
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(d));
+
+const normalize = (value: string) =>
+  value.normalize("NFKC").trim().toLowerCase();
+const itemWords = new Map(items.flatMap(item => [item, ...normalize(labels[item]).split(/[·\s]+/)].map(word => [word, item] as const)));
+export function searchBins(bins: Bin[], query: string, filter: Waste | null) {
+  const tokens = normalize(query).split(/\s+/).filter(Boolean);
+  return bins.filter((bin) => {
+    if (filter && !bin.waste_types.includes(filter)) return false;
+    const fields = [
+      bin.name,
+      zoneName(bin.zone_id),
+      bin.location_description,
+      ...bin.waste_types.flatMap((item) => [labels[item], item]),
+    ].map(normalize);
+    return tokens.every(token => {
+      const item=itemWords.get(token);
+      return item ? bin.waste_types.includes(item) : fields.some(field=>field.includes(token));
+    });
+  });
+}
+export function preferredItems(installed: Waste[], preferred?: Waste | null) {
+  return preferred && installed.includes(preferred)
+    ? [preferred, ...installed.filter((t) => t !== preferred)]
+    : installed;
+}

@@ -67,7 +67,7 @@ return (
 
 ## 탭, 터치, 통계
 
-하단 표시기는 아이콘과 글자를 한꺼번에 감싼다. 모바일 본문은 퇴장하는 탭의 View Transition 스냅샷을 페이드하고 새 페이지를 바로 입력 가능한 상태로 둔다. 새 지도가 들어올 때에는 이번 전환이 끝난 뒤에 다음 퇴장 캡처를 준비한다. 지도 인스턴스는 보존하며 비활성 레이어는 `inert`, 투명도, 가시성, 입력 차단을 함께 적용한다. 네이티브 전환을 지원하지 않는 브라우저도 같은 라우트와 입력 상태를 사용한다.
+하단 표시기는 아이콘과 글자를 함께 감싼다. 목적지 본문은 불투명한 표면 위에서 진입한다. 이전 문구의 비트맵은 남기지 않는다. 지도 인스턴스는 보존하며 비활성 레이어에는 `inert`, 투명도, 가시성, 입력 차단을 함께 적용한다. 필터 패널에서 선택하면 결과와 조작 가능 상태를 즉시 갱신하고 시트 높이와 제목의 전환을 기존 모션 토큰으로 연결한다. 모션 감소 설정에서는 바로 새 상태를 표시한다.
 
 `PressButton`의 크기와 포커스는 바깥의 네이티브 버튼이 담당한다. 색·테두리·아이콘·텍스트를 가진 안쪽 `.press-face`만 함께 축소한다. 칩은 기존 `.chip-pill`을 같은 표면으로 사용한다. 선택 상태별 배경과 테두리는 `--press-fill`과 `--press-rule`로 지정한다.
 
@@ -110,3 +110,6 @@ Playwright Trace에는 탭 이동, 실제 터치, API 응답과 전후 DOM이 �
 ```sh
 KAKAO_SMOKE_URL=https://trash-map-demo.vercel.app npm run test:e2e -- tests/e2e/tab-layers.spec.ts tests/e2e/filter-motion.spec.ts --trace on
 ```
+
+
+업무 흐름은 격리된 DB에서 `npm run test:e2e -- tests/e2e/task-oriented-ux.spec.ts tests/e2e/booth.spec.ts --trace on`으로 검증한다. 실제 SDK의 읽기 전용 확인에는 `KAKAO_SMOKE_URL`을 설정해 `task-oriented-ux.spec.ts`, `tab-layers.spec.ts`, `filter-motion.spec.ts`만 실행한다. [화면 변경 전후와 품목 탐색](booth-journey.webp)

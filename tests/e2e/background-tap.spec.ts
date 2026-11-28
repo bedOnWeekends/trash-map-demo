@@ -14,7 +14,7 @@ async function openMap(page: Page) {
   const bins = ["five", "anniversary", "main"].map((zone, i) => ({
     ...model.bins.find((b) => b.zone_id === zone)!,
     name: "교내 수거함 " + (i + 1),
-    waste_types: i === 2 ? ["glass"] : ["paper"],
+    waste_types: i === 2 ? ["glass"] : ["liquid"],
   }));
   await page.route("**/api/snapshot", (route) =>
     route.fulfill({ json: { ...model, bins } }),
@@ -26,7 +26,7 @@ async function openMap(page: Page) {
 test("거점 전환과 배경 탭은 검색·필터·카메라를 보존한다", async ({ page }) => {
   await openMap(page);
   await page.getByRole("searchbox").fill("교내");
-  await page.getByRole("button", { name: "종이", exact: true }).tap();
+  await page.getByRole("button", { name: "남은 음료", exact: true }).tap();
   await expect(page.locator(".pin")).toHaveCount(2);
   await page.getByRole("button", { name: "시트 닫기" }).tap();
   const sheet = page.locator(".station-sheet"),
@@ -49,7 +49,7 @@ test("거점 전환과 배경 탭은 검색·필터·카메라를 보존한다",
   await expect(page.locator(".pin[aria-pressed=true]")).toHaveCount(0);
   await expect(page.getByRole("searchbox")).toHaveValue("교내");
   await expect(page.locator(".quick-filters [aria-pressed=true]")).toHaveText(
-    "종이",
+    "남은 음료",
   );
   await expect(page.locator(".station")).toHaveCount(2);
   await expect(map).toHaveAttribute("viewBox", camera!);

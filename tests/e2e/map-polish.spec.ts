@@ -120,6 +120,7 @@ test("스냅마다 검색·지도 버튼·저작권·탭이 서로 겹치지 않
     [390, 844],
     [412, 915],
     [430, 932],
+    [454, 312],
     [667, 375],
     [844, 390],
   ]) {
@@ -188,7 +189,10 @@ test("스냅마다 검색·지도 버튼·저작권·탭이 서로 겹치지 않
           });
         expect(overlaps).toBe(false);
       }
-      if (state === "peek") {
+      if (
+        state === "peek" &&
+        (await page.locator(".quick-filters").isVisible())
+      ) {
         expect((await rect(page, ".chip-pill")).height).toBe(32);
         expect(
           (await rect(page, ".quick-filters button")).height,

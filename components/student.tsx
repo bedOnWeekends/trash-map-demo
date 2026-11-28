@@ -1,6 +1,6 @@
 "use client";
 import { PressButton } from "./ui/press-button";
-import { useCallback, useState } from "react";
+import { useCallback, useState, useRef } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -12,14 +12,23 @@ import {
   Navigation,
 } from "lucide-react";
 import { useInstalledBins } from "./motion/data";
-import CampusMap, { type Pin } from "./campus-map";
+import CampusMap, { type Pin, type MobileCamera } from "./campus-map";
 import { Shell, Footer, Notice, LoadState, ItemPicker } from "./common";
 import {
   BinDetail,
+  EmptySearch,
   StationList,
   ReportDialog,
   binPin,
 } from "./student-stations";
+import { MapIntentReceiver } from "./map-intent";
+import {
+  emptyDraft,
+  savedDraft,
+  saveDraft,
+  ReasonPresets,
+  type Draft,
+} from "./request-wizard";
 import { useMobileStudent } from "./student-shell";
 
 import { AnimatedNumber, ContentReveal } from "./motion/patterns";
@@ -29,7 +38,7 @@ import {
   items,
   labels,
   zones,
-  zoneName,
+  searchBins,
   zoneAt,
   type Waste,
   type Point,
@@ -39,23 +48,32 @@ function StudentScreen({ booth }: { booth: Booth }) {
   const [query, search] = useState(""),
     [filter, setFilter] = useState<Waste | null>(null),
     [selected, select] = useState(""),
-    [requesting, request] = useState(false),
-    [point, setPoint] = useState<Point | null>(null),
-    [types, setTypes] = useState<Waste[]>([]),
-    [reason, setReason] = useState(""),
     [report, confirmReport] = useState<{ id: string; item: Waste } | null>(
       null,
     ),
     [collapsed, collapse] = useState(false);
+  const camera = useRef<MobileCamera>(null);
+  const column = useRef<HTMLElement>(null);
+  const [draft, setDraft] = useState<Draft | null>(() =>
+    savedDraft(data?.epoch),
+  );
+  const [epoch, setEpoch] = useState(data?.epoch);
+  if (data && data.epoch !== epoch) {
+    setEpoch(data.epoch);
+    setDraft(savedDraft(data.epoch));
+  }
+  const requesting = !!draft,
+    { point, types, reason } = draft ?? emptyDraft;
+  function edit(next: Draft | null) {
+    saveDraft(data?.epoch, next);
+    setDraft(next);
+  }
+  function setPoint(point: Point | null) {
+    if (draft) edit({ ...draft, point });
+  }
   const fresh = useInstalledBins(data?.bins, data?.epoch);
   const bins = data?.bins ?? [],
-    filtered = bins.filter(
-      (b) =>
-        (!filter || b.waste_types.includes(filter)) &&
-        (b.name + zoneName(b.zone_id) + b.location_description)
-          .toLowerCase()
-          .includes(query.trim().toLowerCase()),
-    );
+    filtered = searchBins(bins, query, filter);
   const current = bins.find((b) => b.id === selected),
     zone = point ? zoneAt(point) : null;
   const clearSelection = useCallback(() => select(""), []);
@@ -85,18 +103,55 @@ function StudentScreen({ booth }: { booth: Booth }) {
     });
   const back = () => {
     select("");
-    request(false);
-    setPoint(null);
-    setReason("");
-    setTypes([]);
+    if(requesting)edit(null);
   };
   const start = () => {
-    back();
-    request(true);
+    select("");
+    edit(
+      draft ??
+        savedDraft(data?.epoch) ?? {
+          ...emptyDraft,
+          types: filter ? [filter] : [],
+        },
+    );
     collapse(false);
   };
   return (
     <>
+      <MapIntentReceiver
+        booth={booth}
+        apply={(intent, bin) => {
+          if (intent.type === "request") {
+            start();
+            return;
+          }
+          if (intent.type === "invalid" || (intent.type === "bin" && !bin)) {
+            notify("요청한 거점을 확인할 수 없어요. 지도에서 다시 찾아주세요.");
+            return;
+          }
+          setDraft(null);
+          collapse(false);
+          if (intent.type === "filter") {
+            search("");
+            setFilter(intent.waste);
+            select("");
+            return;
+          }
+          if (bin) {
+            if (!searchBins([bin], query, filter).length) {
+              search("");
+              setFilter(null);
+            }
+            select(bin.id);
+            requestAnimationFrame(() => {
+              const rect = column.current
+                ?.querySelector(".map-surface")
+                ?.getBoundingClientRect();
+              if (rect) camera.current?.reveal(bin, rect);
+            });
+          }
+        }}
+      />
       <Shell />
       <main className="workspace">
         <div className="page-heading">
@@ -180,18 +235,27 @@ function StudentScreen({ booth }: { booth: Booth }) {
                             point.lng.toFixed(6)
                           : "위치를 선택해 주세요"}
                       </p>
-                      <ItemPicker value={types} onChange={setTypes} />
+                      <ItemPicker
+                        value={types}
+                        onChange={(types) => edit({ ...draft!, types })}
+                      />
                       <label>
                         건의 사유
                         <textarea
                           value={reason}
                           maxLength={400}
                           required
-                          onChange={(e) => setReason(e.target.value)}
+                          onChange={(e) =>
+                            edit({ ...draft!, reason: e.target.value })
+                          }
                           placeholder="이 위치에 수거함이 필요한 이유"
                           rows={3}
                         />
                       </label>
+                      <ReasonPresets
+                        reason={reason}
+                        change={(reason) => edit({ ...draft!, reason })}
+                      />
                       <PressButton
                         className="primary wide"
                         disabled={
@@ -215,6 +279,7 @@ function StudentScreen({ booth }: { booth: Booth }) {
                       거점 목록
                     </button>
                     <BinDetail
+                      preferred={filter}
                       current={current}
                       confirmReport={confirmReport}
                     />
@@ -253,7 +318,9 @@ function StudentScreen({ booth }: { booth: Booth }) {
                       ))}
                     </div>
                     <div className="list-heading">
-                      <h3>수거 거점</h3>
+                      <h3>
+                        {filter ? labels[filter] + " 수거 거점" : "수거 거점"}
+                      </h3>
                       <b>
                         {data ? (
                           <AnimatedNumber value={filtered.length} />
@@ -267,12 +334,18 @@ function StudentScreen({ booth }: { booth: Booth }) {
                         <LoadState error={error} retry={refresh} />
                       ) : null}
                       {data && filtered.length === 0 && (
-                        <p className="empty">
-                          검색 결과가 없어요. 다른 건물명이나 품목을 선택해
-                          주세요.
-                        </p>
+                        <EmptySearch
+                          query={query}
+                          filter={filter}
+                          clearFilter={() => setFilter(null)}
+                          clearQuery={() => search("")}
+                        />
                       )}
-                      <StationList filtered={filtered} choose={choose} />
+                      <StationList
+                        filter={filter}
+                        filtered={filtered}
+                        choose={choose}
+                      />
                     </ContentReveal>
                   </>
                 )}
@@ -291,13 +364,16 @@ function StudentScreen({ booth }: { booth: Booth }) {
               </div>
             )}
           </section>
-          <section className="map-column">
+          <section ref={column} className="map-column">
             <CampusMap
               pins={pins}
               selected={current?.id}
               onSelect={choose}
               onDeselect={requesting ? undefined : clearSelection}
               onPick={pick}
+              cameraRef={camera}
+              showZones="student"
+              pickedZone={zone ?? undefined}
               picking={requesting}
             />
             <div className="map-legend">
@@ -316,7 +392,11 @@ function StudentScreen({ booth }: { booth: Booth }) {
         </div>
         <Footer />
       </main>
-      <Notice kind={booth.noticeKind} text={notice} />
+      <Notice
+        kind={booth.noticeKind}
+        text={notice}
+        requestAction={booth.requestAction ? () => notify("") : undefined}
+      />
       <ReportDialog
         booth={booth}
         report={report}

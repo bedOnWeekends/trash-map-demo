@@ -145,7 +145,7 @@ test("최초 로딩, 실시간 상태 전환, 재시도와 열린 건의 보존"
   const entry = page.locator(".request-entry");
   await expect(entry).toHaveCount(1);
   await entry.locator("summary").tap();
-  await expect(entry.locator("p")).toBeVisible();
+  await expect(entry.getByText("현재 건의 사유",{exact:true})).toBeVisible();
   await expect(page.locator(".skeleton")).toHaveCount(0);
   await page.evaluate(() => {
     new MutationObserver((records) => {
@@ -174,7 +174,7 @@ test("최초 로딩, 실시간 상태 전환, 재시도와 열린 건의 보존"
   await expect(
     page.locator(".reading-scroll").getByRole("alert"),
   ).toContainText("테스트 연결 오류");
-  await expect(entry.locator("p")).toBeVisible();
+  await expect(entry.getByText("현재 건의 사유",{exact:true})).toBeVisible();
   fail = false;
   await page.getByRole("button", { name: "다시 연결" }).tap();
   await expect(page.locator(".reading-scroll").getByRole("alert")).toHaveCount(
@@ -345,19 +345,11 @@ test("스켈레톤은 열린 지도 시트에서만 움직이고 탭 복귀 후 
   await expect(page.locator(".station").first()).toBeVisible();
 });
 
-test("이전 탭이 사라지는 도중에도 새 화면의 버튼이 터치를 받는다", async ({
+test("탭 전환 프레임에서 이전 본문이 사라지고 새 버튼이 터치를 받는다", async ({
   page,
 }) => {
   await page.goto("/");
   await expect(page.locator(".pin").first()).toBeVisible();
-  test.skip(
-    !(await page.evaluate(() => "activeViewTransition" in document)),
-    "Native transition snapshots unsupported",
-  );
-  await expect(page.locator(".student-map-view")).toHaveAttribute(
-    "data-capture-departure",
-    "",
-  );
   const results = await page.evaluateHandle(() => {
     const hits: boolean[] = [];
     let frame = 0;
@@ -370,12 +362,13 @@ test("이전 탭이 사라지는 도중에도 새 화면의 버튼이 터치를 
             "::view-transition-old(",
           ),
         );
-      if (button && fading) {
+      if (button) {
         const r = button.getBoundingClientRect();
         hits.push(
-          button.contains(
-            document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2),
-          ),
+          !fading &&
+            button.contains(
+              document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2),
+            ),
         );
       }
       frame = requestAnimationFrame(observe);
