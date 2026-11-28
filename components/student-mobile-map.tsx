@@ -1,4 +1,5 @@
 "use client";
+import { PressButton } from "./ui/press-button";
 import { AnimatedNumber, Swap, ContentReveal } from "./motion/patterns";
 import {
   useCallback,
@@ -100,6 +101,7 @@ export function MobileMap({
     remember(contentId);
     setDirection(contentId === "list" ? -1 : previous === "list" ? 1 : 0);
   }
+  const filterTrigger = useRef<HTMLButtonElement>(null);
   const listScroll = useRef(0);
   const visibleChips =
     filter && !frequent.includes(filter)
@@ -114,7 +116,7 @@ export function MobileMap({
     setFilter(next);
     select("");
     openFilter(false);
-    setSnap("half");
+    setSnap((value) => (value === "peek" ? "half" : value));
   };
   const choose = (pin: Pin) => {
     if (draft) {
@@ -245,7 +247,7 @@ export function MobileMap({
                     onChange={(e) => {
                       search(e.target.value);
                       select("");
-                      setSnap("half");
+                      setSnap((value) => (value === "peek" ? "half" : value));
                     }}
                   />
                   {
@@ -263,14 +265,19 @@ export function MobileMap({
                       <X size={17} />
                     </button>
                   }
-                  <button
+                  <PressButton
+                    ref={filterTrigger}
+                    aria-controls={
+                      filterOpen ? "student-filter-options" : undefined
+                    }
+                    aria-expanded={filterOpen}
                     className="filter-trigger"
                     aria-label="전체 품목 필터"
                     aria-haspopup="dialog"
                     onClick={() => openFilter(true)}
                   >
                     <SlidersHorizontal size={19} />
-                  </button>
+                  </PressButton>
                 </div>
                 <div className="quick-filters" aria-label="품목 필터">
                   <button
@@ -298,7 +305,7 @@ export function MobileMap({
             <div className="map-tool-space">
               <div className="map-actions">
                 {!draft && (
-                  <button
+                  <PressButton
                     className="proposal-fab primary"
                     disabled={!data}
                     onClick={() => {
@@ -309,7 +316,7 @@ export function MobileMap({
                   >
                     <Plus size={18} />
                     추가 설치 건의
-                  </button>
+                  </PressButton>
                 )}
                 {(step === undefined || step === 1) && (
                   <MapControls
@@ -431,7 +438,13 @@ export function MobileMap({
         <Dialog.Portal>
           <Dialog.Overlay className="scrim" />
           <Dialog.Content
-            className="mobile-dialog"
+            inert={!active || !filterOpen}
+            onCloseAutoFocus={(event) => {
+              event.preventDefault();
+              if (active) filterTrigger.current?.focus({ preventScroll: true });
+            }}
+            id="student-filter-options"
+            className="mobile-dialog filter-dialog"
             aria-describedby={undefined}
           >
             <Dialog.Title>품목 필터</Dialog.Title>
@@ -440,7 +453,7 @@ export function MobileMap({
             </Dialog.Close>
             <div className="filter-grid">
               {items.map((t) => (
-                <button
+                <PressButton
                   key={t}
                   className={"kind-" + t}
                   aria-pressed={filter === t}
@@ -448,7 +461,7 @@ export function MobileMap({
                 >
                   <ItemIcon kind={t} />
                   {labels[t]}
-                </button>
+                </PressButton>
               ))}
             </div>
             <button
@@ -456,7 +469,7 @@ export function MobileMap({
               onClick={() => {
                 reset();
                 openFilter(false);
-                setSnap("half");
+                setSnap((value) => (value === "peek" ? "half" : value));
               }}
             >
               검색·필터 초기화
@@ -475,10 +488,10 @@ export function MobileMap({
         title="건의 작성을 취소할까요?"
         description="취소하면 작성한 위치, 품목과 사유가 지워집니다."
       >
-        <button onClick={() => askDiscard(false)}>계속 작성</button>
-        <button className="primary" onClick={closeDraft}>
+        <PressButton onClick={() => askDiscard(false)}>계속 작성</PressButton>
+        <PressButton className="primary" onClick={closeDraft}>
           작성 취소
-        </button>
+        </PressButton>
       </ConfirmDialog>
     </>
   );

@@ -12,7 +12,6 @@ export function useEpochKey(epoch?: string) {
 export function useBooth(admin = false, enabled = true) {
   const [data, setData] = useState<Snapshot | null>(null),
     [error, setError] = useState(""),
-    [sync, setSync] = useState(""),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState({ text: "", kind: "info" as NoticeKind });
   const { text: notice, kind: noticeKind } = message;
@@ -84,7 +83,6 @@ export function useBooth(admin = false, enabled = true) {
       .subscribe((status) => {
         if (cancel) return;
         online = status === "SUBSCRIBED";
-        setSync(online ? "" : "주기적 동기화");
         if (online) queue();
       });
     queue();
@@ -92,7 +90,6 @@ export function useBooth(admin = false, enabled = true) {
     const poll = setInterval(() => {
       const today = day(Date.now());
       if (!online) {
-        setSync(navigator.onLine ? "주기적 동기화" : "오프라인");
         queue();
       } else if (today !== date) queue();
       date = today;
@@ -102,7 +99,6 @@ export function useBooth(admin = false, enabled = true) {
     };
     const offline = () => {
       online = false;
-      setSync("오프라인");
     };
     document.addEventListener("visibilitychange", visible);
     window.addEventListener("online", queue);
@@ -165,7 +161,6 @@ export function useBooth(admin = false, enabled = true) {
   return {
     data,
     error,
-    sync,
     busy,
     notice,
     noticeKind,

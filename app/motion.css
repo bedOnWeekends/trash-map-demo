@@ -139,7 +139,6 @@
 }
 .wizard-fields .chips button {
   gap: var(--space-2xs);
-  padding-inline: var(--space-xs);
 }
 .wizard-fields .chips .pick-check {
   margin-left: auto;
@@ -350,7 +349,8 @@
     transform: translateX(100%);
   }
 }
-[aria-hidden="true"] .skeleton-row > *::after,
+[data-motion-paused="true"] .skeleton-row > *::after,
+.student-map-view[inert] .skeleton-row > *::after,
 .station-sheet[data-state="peek"] .skeleton-row > *::after {
   animation-play-state: paused;
 }
@@ -405,83 +405,6 @@
 [data-status="installed"] .status-check {
   animation: confirm-ink var(--dur-emphasis);
 }
-:is(
-  .proposal-fab,
-  .wizard-actions button,
-  .report,
-  .primary,
-  .chips button,
-  .quick-filters button,
-  .filter-trigger,
-  .filter-grid button,
-  .queue-row button,
-  .actions button
-) {
-  touch-action: manipulation;
-}
-:is(
-    .proposal-fab,
-    .wizard-actions button,
-    .report,
-    .primary,
-    .chips button,
-    .quick-filters button,
-    .filter-trigger,
-    .filter-grid button,
-    .queue-row button,
-    .actions button
-  )
-  > :is(svg, span) {
-  transition:
-    scale var(--dur-micro) var(--motion-standard),
-    opacity var(--dur-fast),
-    background-color var(--dur-micro),
-    border-color var(--dur-micro);
-}
-:is(
-  .proposal-fab,
-  .wizard-actions button,
-  .report,
-  .primary,
-  .chips button,
-  .quick-filters button,
-  .filter-trigger,
-  .filter-grid button,
-  .queue-row button,
-  .actions button
-):active {
-  transform: none;
-}
-:is(
-    .proposal-fab,
-    .wizard-actions button,
-    .report,
-    .primary,
-    .chips button,
-    .quick-filters button,
-    .filter-trigger,
-    .filter-grid button,
-    .queue-row button,
-    .actions button
-  ):active:not(:disabled) {
-  box-shadow: inset 0 0 0 2px color-mix(in srgb, currentColor 18%, transparent);
-}
-:is(
-    .proposal-fab,
-    .wizard-actions button,
-    .report,
-    .primary,
-    .chips button,
-    .quick-filters button,
-    .filter-trigger,
-    .filter-grid button,
-    .queue-row button,
-    .actions button
-  ):active:not(:disabled)
-  > :is(svg, span) {
-  scale: var(--scale-press);
-  transition-duration: var(--dur-instant);
-}
 @media (prefers-reduced-motion: reduce) {
   .skeleton-row > *::after,
   .pending-icon,
@@ -504,3 +427,112 @@
 .number-track > span::before {
   content: attr(data-value);
 }
+
+/* Only the old bitmap fades above the already interactive destination. */
+@media (prefers-reduced-motion: no-preference) {
+  .student-map-view[data-capture-departure]:not([inert]) {
+    view-transition-name: student-outgoing-map;
+    view-transition-class: tab-crossfade;
+  }
+}
+:root:has(.student-viewport) { view-transition-name: none; }
+::view-transition-group(.tab-crossfade),
+::view-transition-old(.tab-crossfade),
+::view-transition-new(.tab-crossfade) {
+  animation-duration: var(--dur-fast);
+  animation-timing-function: var(--motion-standard);
+  pointer-events: none;
+}
+:root:has(.student-viewport)::view-transition { pointer-events: none; }
+
+.station-slot {
+  position: relative;
+  z-index: 1;
+  overflow: clip;
+  background: var(--color-paper-3);
+}
+.stations { isolation: isolate; }
+.station-slot[inert] { z-index: 0; pointer-events: none; }
+.stations[data-empty] { overflow: clip; }
+.station-slot:has(:focus-visible) { outline: 2px solid var(--color-focus); outline-offset: -2px; }
+
+.placeholder-stations { min-height: 180px; }
+.placeholder-requests { min-height: 148px; }
+.skeleton.stations-placeholder { gap: 0; padding: 0; }
+.stations-placeholder .skeleton-row { min-height: 60px; padding-block: var(--space-xs); }
+.request-placeholder {
+  grid-template-columns: 1fr auto;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-rule);
+  background: var(--color-paper-3);
+  border-radius: 12px;
+}
+.request-placeholder i { grid-row: 1; width: 48%; height: 12px; }
+.request-placeholder span:nth-child(2) { width: 36px; height: 16px; }
+.request-placeholder span:last-child { grid-column: 1/-1; }
+.request-empty > * { animation: content-appear var(--dur-fast) var(--motion-enter) backwards; }
+.request-empty > :nth-child(2) { animation-delay: 35ms; }
+.request-empty > :nth-child(3) { animation-delay: 70ms; }
+
+.distribution i {
+  flex: 0 0 0;
+  min-width: 0;
+  transition: flex-grow var(--dur-panel) var(--motion-standard);
+}
+
+/* Keep geometry and focus on the control, and paint everything on one face. */
+button.press-button,
+button.press-button:hover,
+button.press-button[aria-pressed] {
+  display: inline-grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.press-button:active, .quick-filters button:active { transform: none; }
+.press-face {
+  min-height: inherit;
+  border-radius: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: inherit;
+  gap: inherit;
+  padding: var(--press-padding, var(--space-xs) var(--space-sm));
+  background: var(--press-fill, var(--color-paper-3));
+  border: 1px solid var(--press-rule, var(--color-rule));
+}
+button.press-button.primary { --press-fill: var(--color-accent); --press-rule: var(--color-accent); }
+button.press-button.danger { --press-fill: var(--warn); }
+button.proposal-fab .press-face { box-shadow: var(--shadow); }
+button.filter-trigger .press-face { border: 0; border-inline-start: 1px solid var(--color-rule); }
+.map-search-field .press-button { --press-padding: 0; --press-fill: transparent; }
+.chips .press-button { --press-padding: var(--space-2xs) var(--space-sm); }
+.wizard-fields .chips .press-button { --press-padding: var(--space-xs); }
+:where(.press-button)[aria-pressed="true"] { --press-fill: var(--subtle); --press-rule: var(--color-accent); }
+@media (hover: hover) {
+  .press-button:not(.primary,.danger,[aria-pressed="true"]):enabled:hover { --press-fill: var(--subtle); }
+}
+.press-face, .quick-filters .chip-pill {
+  transition: scale var(--dur-micro) var(--motion-standard), background-color var(--dur-micro), border-color var(--dur-micro);
+}
+.press-button:active:enabled > .press-face,
+.quick-filters button:active:enabled > .chip-pill {
+  scale: var(--scale-press);
+  transition-duration: var(--dur-instant);
+}
+.press-face .pick-check { opacity: 0; scale: var(--scale-press); }
+[aria-pressed="true"] .press-face .pick-check { opacity: 1; scale: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(.tab-crossfade),
+  ::view-transition-old(.tab-crossfade),
+  ::view-transition-new(.tab-crossfade) { animation-duration: 0s; }
+  .press-button:active:enabled > .press-face, .quick-filters button:active:enabled > .chip-pill { scale: 1; }
+  .press-face, .quick-filters .chip-pill, .distribution i { transition: none; }
+  .request-empty > * { animation: none; }
+}
+
+.mobile-reading { animation: veil-in var(--dur-fast) var(--motion-enter); }

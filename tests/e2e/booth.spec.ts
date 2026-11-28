@@ -229,12 +229,18 @@ test("모바일 배치도, 키보드, 줄어든 모션 및 폴링 폴백", async
   await context.routeWebSocket(/realtime/, (ws) =>
     ws.close({ code: 1000, reason: "poll test" }),
   );
+  let reads = 0;
+  page.on("response", (r) => {
+    if (new URL(r.url()).pathname === "/api/snapshot" && r.ok()) reads++;
+  });
   await page.goto(base);
   await page.getByRole("button", { name: "목록 펼치기" }).click();
   await expect(page.locator(".station")).toHaveCount(8);
-  await expect(
-    page.getByText("주기적 동기화", { exact: true }).last(),
-  ).toBeVisible();
+  const initial = reads;
+  await expect.poll(() => reads, { timeout: 15000 }).toBeGreaterThan(initial);
+  await expect(page.getByText(/주기적 동기화|오프라인|재연결 중/)).toHaveCount(
+    0,
+  );
   for (const route of ["/", "/requests", "/guide", "/admin"]) {
     await page.goto(base + route);
     expect(
@@ -626,4 +632,70 @@ test("터치 지도 제스처, 직접 위치 지정, 안전 영역과 가로 시
   } finally {
     await context.close();
   }
+});
+
+test("관리자 분포 막대가 중간 너비를 거쳐 최신 개수에 도달한다", async ({
+  page,
+}) => {
+  await login(page);
+  const seed = await snap(page, true);
+  const bin = seed.bins[0];
+  let generation = 1;
+  let value: number | null = 10;
+  let empty = false;
+  await page.route("**/api/admin/snapshot", (route) =>
+    route.fulfill({
+      json: {
+        ...seed,
+        version: seed.version + generation,
+        bins: empty
+          ? []
+          : [{ ...bin, waste_types: ["general"], fills: { general: value } }],
+      },
+    }),
+  );
+  const refresh = () =>
+    page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+  const segment = page.locator('.distribution i[data-level="가득 참"]');
+  const counts = page.locator(".level-list b");
+  await refresh();
+  await expect(counts).toHaveText(["1", "0", "0", "0", "0"]);
+  await expect(segment).toHaveCSS("flex-grow", "0");
+  const frames = await segment.evaluateHandle((el) => {
+    const grow: number[] = [];
+    let frame = 0;
+    const record = () => {
+      grow.push(Number(getComputedStyle(el).flexGrow));
+      frame = requestAnimationFrame(record);
+    };
+    record();
+    return { grow, stop: () => cancelAnimationFrame(frame) };
+  });
+  value = 100;
+  generation++;
+  await refresh();
+  await expect(counts).toHaveText(["0", "0", "0", "1", "0"]);
+  await expect(segment).toHaveCSS("flex-grow", "1");
+  expect(
+    await frames.evaluate(({ grow }) => grow.some((n) => n > 0 && n < 1)),
+  ).toBe(true);
+  value = null;
+  generation++;
+  await refresh();
+  await expect(counts).toHaveText(["0", "0", "0", "0", "1"]);
+  empty = true;
+  generation++;
+  await refresh();
+  await expect(counts).toHaveText(["0", "0", "0", "0", "0"]);
+  await expect(segment).toHaveCSS("flex-grow", "0");
+  await frames.evaluate((f) => f.stop());
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  empty = false;
+  value = 100;
+  generation++;
+  await refresh();
+  await expect(counts).toHaveText(["0", "0", "0", "1", "0"]);
+  await expect(segment).toHaveCSS("transition-property", "none");
+  expect(await segment.evaluate((el) => el.getAnimations().length)).toBe(0);
+  await expect(segment).toHaveCSS("flex-grow", "1");
 });

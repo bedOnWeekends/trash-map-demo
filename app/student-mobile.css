@@ -1,7 +1,4 @@
 /* Student routes mount this shell only at phone widths or in compact landscape. */
-.shell-sync {
-  display: none;
-}
 .student-app {
   --edge: var(--space-sm);
   --surface-gap: var(--space-xs);
@@ -36,16 +33,6 @@
 .student-app .top nav,
 .student-app .booth-label {
   display: none;
-}
-.student-app .shell-sync {
-  display: flex;
-  margin-left: auto;
-}
-.student-app .sync {
-  border: 0;
-  padding: 0;
-  font-size: 11px;
-  gap: var(--space-2xs);
 }
 .student-tabs {
   display: grid;
@@ -280,7 +267,6 @@
   outline-offset: -4px;
 }
 .map-search-field .filter-trigger {
-  border-left: 1px solid var(--color-rule);
   border-radius: 0 14px 14px 0;
 }
 .quick-filters {
@@ -506,7 +492,6 @@
 }
 .wizard-fields .chips button[aria-pressed="true"] {
   color: var(--color-accent);
-  background: var(--subtle);
 }
 .wizard-fields :is(textarea, select) {
   font-size: 16px;
@@ -580,7 +565,6 @@
   color: inherit;
 }
 .mobile-reading {
-  animation: slide-in var(--dur-short) var(--ease-out);
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   min-height: 0;

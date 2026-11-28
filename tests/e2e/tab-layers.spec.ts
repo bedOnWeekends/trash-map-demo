@@ -102,6 +102,7 @@ test("반복 탭 전환과 방문 기록 이동 후 활성 페이지만 그려�
     });
   }
   const sdk = await zoom(page, "지도 축소");
+  const cameraBeforeFilter = await sdk?.evaluate(cameraState);
   const filter = page
     .locator(".quick-filters")
     .getByRole("button", { name: "일반쓰레기" });
@@ -131,6 +132,7 @@ test("반복 탭 전환과 방문 기록 이동 후 활성 페이지만 그려�
   }).toPass();
   const camera = await positions();
   const coordinates = await sdk?.evaluate(cameraState);
+  if (sdk) expect(coordinates).toEqual(cameraBeforeFilter);
 
   for (let pass = 0; pass < 2; pass++) {
     await tab(page, "/requests").tap();

@@ -1,12 +1,9 @@
 "use client";
-import { forwardRef, useContext } from "react";
-import {
-  AnimatePresence,
-  motion,
-  useIsPresent,
-  useReducedMotion,
-} from "motion/react";
-import { duration, tween } from "@/lib/motion";
+import { useMotionPreference } from "@/components/motion/patterns";
+import { PressButton } from "./ui/press-button";
+import { forwardRef, useContext, useLayoutEffect, useRef } from "react";
+import { AnimatePresence, motion, useIsPresent } from "motion/react";
+import { duration, distance, ease, tween } from "@/lib/motion";
 import { SheetDragging } from "./station-sheet";
 import { ChevronRight, Check, LoaderCircle, TriangleAlert } from "lucide-react";
 import { ItemIcon, Fill } from "./common";
@@ -51,13 +48,13 @@ export function BinDetail({
               <ItemIcon kind={t} />
               {labels[t]}
             </strong>
-            <button
+            <PressButton
               className="report"
               onClick={() => confirmReport({ id: current.id, item: t })}
             >
               <TriangleAlert size={14} />
               가득 참 신고
-            </button>
+            </PressButton>
           </div>
           <Fill value={current.fills[t]} />
         </div>
@@ -72,8 +69,54 @@ export function StationList({
   filtered: Bin[];
   choose: (pin: Pin) => void;
 }) {
+  const list = useRef<HTMLDivElement>(null);
+  const previous = useRef(new Map<string, number>());
+  const drag = useContext(SheetDragging);
+  const reduce = useMotionPreference();
+  const order = filtered.map((b) => b.id).join(",");
+  useLayoutEffect(() => {
+    // offsetTop uses list-local layout coordinates. Sheet movement and scroll
+    // never enter the projection. Read the final slots before writing motion.
+    const slots = [
+      ...list.current!.querySelectorAll<HTMLElement>(
+        ":scope > [data-bin-id]:not([inert])",
+      ),
+    ];
+    const positions = new Map(
+      slots.map((el) => [el.dataset.binId!, el.offsetTop]),
+    );
+    const animations: Animation[] = [];
+    if (!drag && !reduce) {
+      for (const el of slots) {
+        const id = el.dataset.binId!;
+        const from = previous.current.get(id);
+        const to = positions.get(id)!;
+        if (from === undefined || from === to) continue;
+        // Keep long moves inside their own opaque slot so labels cannot cross.
+        const dy = Math.max(
+          -distance.reveal,
+          Math.min(distance.reveal, from - to),
+        );
+        animations.push(
+          el.firstElementChild!.animate(
+            [{ translate: `0 ${dy}px` }, { translate: "0 0" }],
+            {
+              duration: duration.fast * 1000,
+              easing: `cubic-bezier(${ease.enter.join(",")})`,
+            },
+          ),
+        );
+      }
+    }
+    previous.current = positions;
+    return () => animations.forEach((a) => a.cancel());
+  }, [order, drag, reduce]);
   return (
-    <div className="stations">
+    <div
+      className="stations"
+      ref={list}
+      data-empty={!filtered.length || undefined}
+    >
       <AnimatePresence mode="popLayout" initial={false}>
         {filtered.map((b) => (
           <StationRow key={b.id} bin={b} choose={choose} />
@@ -83,37 +126,38 @@ export function StationList({
   );
 }
 const StationRow = forwardRef<
-  HTMLButtonElement,
+  HTMLDivElement,
   { bin: Bin; choose: (p: Pin) => void }
 >(function StationRow({ bin: b, choose }, ref) {
   const present = useIsPresent();
   const drag = useContext(SheetDragging);
-  const reduce = useReducedMotion();
+  const reduce = useMotionPreference();
   return (
-    <motion.button
+    <div
       ref={ref}
-      className="station"
-      layout={drag || reduce ? false : "position"}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{
-        ...tween(drag || reduce ? 0 : duration.micro),
-        layout: tween(duration.layout),
-      }}
+      className="station-slot"
+      data-bin-id={b.id}
       inert={!present}
       aria-hidden={!present || undefined}
-      onClick={() => choose(binPin(b))}
     >
-      <span className={"station-icon kind-" + binPin(b).kind}>
-        <ItemIcon kind={binPin(b).kind} />
-      </span>
-      <span>
-        <strong>{b.name}</strong>
-        <small>{b.waste_types.map((t) => labels[t]).join(" / ")}</small>
-      </span>
-      <ChevronRight size={16} />
-    </motion.button>
+      <motion.button
+        className="station"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={tween(drag || reduce ? 0 : duration.micro)}
+        onClick={() => choose(binPin(b))}
+      >
+        <span className={"station-icon kind-" + binPin(b).kind}>
+          <ItemIcon kind={binPin(b).kind} />
+        </span>
+        <span>
+          <strong>{b.name}</strong>
+          <small>{b.waste_types.map((t) => labels[t]).join(" / ")}</small>
+        </span>
+        <ChevronRight size={16} />
+      </motion.button>
+    </div>
   );
 });
 export function ReportDialog({
@@ -144,7 +188,7 @@ export function ReportDialog({
           : ""
       }
     >
-      <button
+      <PressButton
         className="primary wide"
         disabled={busy}
         onClick={async () => {
@@ -160,7 +204,7 @@ export function ReportDialog({
           <Check size={16} />
         )}
         {busy ? "접수 중…" : "확인하고 신고"}
-      </button>
+      </PressButton>
     </ConfirmDialog>
   );
 }
