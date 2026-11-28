@@ -7,7 +7,6 @@ import {
   Plus,
   Search,
   MapPin,
-  SlidersHorizontal,
   ChevronDown,
   Navigation,
 } from "lucide-react";
@@ -358,10 +357,6 @@ function StudentScreen({ booth }: { booth: Booth }) {
                   </>
                 ) : (
                   <>
-                    <div className="title-row">
-                      <h2>거점 찾기</h2>
-                      <SlidersHorizontal size={19} />
-                    </div>
                     <label className="search">
                       <Search size={18} />
                       <input
@@ -401,14 +396,14 @@ function StudentScreen({ booth }: { booth: Booth }) {
                       ))}
                     </div>
                     <div className="list-heading">
-                      <h3>
+                      <h2>
                         {context && (
                           <span className={"type-glyph kind-" + context}>
                             <ItemIcon kind={context} size={17} />
                           </span>
                         )}{" "}
                         {context ? labels[context] + " 수거 거점" : "수거 거점"}
-                      </h3>
+                      </h2>
                       <b>
                         {data ? (
                           <AnimatedNumber value={filtered.length} />
